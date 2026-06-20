@@ -1,11 +1,10 @@
 import * as vscode from "vscode";
-import { registerCommands } from "./commands";
-import { ExcalidrawEditorProvider } from "./editor";
-import { ExcalidrawUriHandler } from "./uri-handler";
+import { activateShared } from "./activateShared";
 
+// Web extension host entry point (vscode.dev / github.dev). The MCP bridge is
+// not available here because the web extension host cannot open a server.
 export async function activate(context: vscode.ExtensionContext) {
-  // Register our custom editor providers
-  context.subscriptions.push(await ExcalidrawEditorProvider.register(context));
-  context.subscriptions.push(ExcalidrawUriHandler.register());
-  registerCommands(context);
+  await activateShared(context);
 }
+
+export function deactivate() {}

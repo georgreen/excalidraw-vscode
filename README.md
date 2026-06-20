@@ -105,6 +105,77 @@ By default, the extension will use the [Visual Studio Code Display Language](htt
 }
 ```
 
+## AI Agent Tools
+
+This extension exposes a set of [Language Model Tools](https://code.visualstudio.com/api/extension-guides/ai/tools) so that VS Code's Copilot **agent mode** can create and draw on Excalidraw diagrams for you. In agent mode you can reference a tool with `#` (e.g. `#addExcalidrawElements`) or simply describe what you want and let the agent pick the tools.
+
+### File tools
+
+- **create_excalidraw_diagram** — create a new `.excalidraw[.json/.svg/.png]` file (optionally seeded with scene JSON) and open it.
+- **open_excalidraw_diagram** — open an existing diagram in the editor.
+- **list_excalidraw_diagrams** — list diagrams in the workspace.
+
+### Canvas tools
+
+These drive a **live** Excalidraw editor. Most take an optional `path`; when omitted, the currently active Excalidraw editor is used. If the target file is not open, it is opened automatically.
+
+- **Read**: `get_excalidraw_scene`, `get_excalidraw_selection`, `get_excalidraw_appstate`, `get_excalidraw_mermaid`, `export_excalidraw_image`.
+- **Author**: `add_excalidraw_elements`, `connect_excalidraw_elements`, `update_excalidraw_elements`, `delete_excalidraw_elements`, `set_excalidraw_scene`, `clear_excalidraw_canvas`.
+- **Style & layout**: `style_excalidraw_elements`, `select_excalidraw_elements`, `scroll_to_excalidraw_content`, `group_excalidraw_elements`, `ungroup_excalidraw_elements`, `frame_excalidraw_elements`, `align_excalidraw_elements`.
+- **Images & library**: `add_excalidraw_image`, `add_excalidraw_library_items`.
+- **Convenience**: `draw_from_mermaid` (convert a Mermaid definition into Excalidraw elements), `set_excalidraw_tool`.
+
+> Note: the canvas tools require an Excalidraw editor to be open (the extension opens one automatically when you pass a `path`). They are not available on read-only documents (e.g. git diff views).
+
+Example prompts:
+
+- "Create a diagram at `docs/architecture.excalidraw` with a `Client`, `API`, and `Database` box connected by arrows."
+- "Read the active diagram, then align the three boxes on their left edge."
+- "Summarize the current diagram — read it as Mermaid first (`#getExcalidrawMermaid`)."
+- "Draw this as a flowchart: `#drawFromMermaid` `graph TD; A-->B; B-->C`."
+
+### Controlling Excalidraw from external agents (MCP)
+
+The extension can also expose these tools over the **Model Context Protocol (MCP)** so that *external* agents — GitHub Copilot CLI, Claude Desktop, Cursor, Zed, etc. — can control Excalidraw, not just VS Code's built-in agent.
+
+When enabled, the **desktop** extension host starts a localhost-only, token-protected MCP HTTP server on activation (it shuts down with VS Code). This feature is desktop-only; the web build keeps the in-editor tools.
+
+1. Enable it in your settings:
+
+   ```json
+   {
+     "excalidraw.mcp.enabled": true
+   }
+   ```
+
+2. On startup the extension writes a discovery file to `~/.excalidraw-vscode/mcp.json`:
+
+   ```json
+   {
+     "url": "http://127.0.0.1:<port>/mcp",
+     "port": 12345,
+     "token": "<random token>"
+   }
+   ```
+
+3. Point your MCP client at that URL using the token as a bearer header. For example, an `http` MCP server entry:
+
+   ```json
+   {
+     "servers": {
+       "excalidraw": {
+         "type": "http",
+         "url": "http://127.0.0.1:<port>/mcp",
+         "headers": { "Authorization": "Bearer <token>" }
+       }
+     }
+   }
+   ```
+
+The same canvas/file tools listed above are available over MCP. The server binds to `127.0.0.1` only and rejects requests without the token. Use `excalidraw.mcp.port` to pin a fixed port (default `0` = pick a free one). Progress and the active URL are logged to the **Excalidraw MCP** output channel.
+
+VS Code's own Copilot can also auto-discover this server (via the MCP server definition provider) on VS Code versions that support it — no manual configuration needed.
+
 ## Contact
 
 Only bug reports / feature requests specifics to the VS Code integration should go to the extension repository. If it is not the case, please report your issue directly to the Excalidraw project.

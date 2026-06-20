@@ -17,6 +17,7 @@ import {
   LibraryItems,
 } from "@excalidraw/excalidraw/types";
 import { vscode } from "./vscode.ts";
+import { handleCommand } from "./commands.ts";
 
 function detectTheme() {
   switch (document.body.className) {
@@ -136,6 +137,14 @@ export default function App(props: {
           }
           case "image-params-change": {
             setImageParams(message.imageParams);
+            break;
+          }
+          case "command": {
+            if (excalidrawAPI) {
+              const result = await handleCommand(excalidrawAPI, message);
+              vscode.postMessage(result);
+            }
+            break;
           }
         }
       } catch (e) {
@@ -150,6 +159,12 @@ export default function App(props: {
     return () => {
       window.removeEventListener("message", listener);
     };
+  }, [excalidrawAPI]);
+
+  useEffect(() => {
+    if (excalidrawAPI) {
+      vscode.postMessage({ type: "ready" });
+    }
   }, [excalidrawAPI]);
 
   return (

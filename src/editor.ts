@@ -5,6 +5,15 @@ import { Base64 } from "js-base64";
 import { ExcalidrawDocument } from "./document";
 import { languageMap } from "./lang";
 import { showEditor } from "./commands";
+import { CommandAction, isMutatingAction } from "./protocol";
+
+function randomId(): string {
+  const g = globalThis as { crypto?: { randomUUID?: () => string } };
+  if (g.crypto?.randomUUID) {
+    return g.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 export class ExcalidrawEditorProvider
   implements vscode.CustomEditorProvider<ExcalidrawDocument>
@@ -56,11 +65,7 @@ export class ExcalidrawEditorProvider
     document: ExcalidrawDocument,
     webviewPanel: vscode.WebviewPanel
   ) {
-    const editor = new ExcalidrawEditor(
-      document,
-      webviewPanel.webview,
-      this.context
-    );
+    const editor = new ExcalidrawEditor(document, webviewPanel, this.context);
     const editorDisposable = await editor.setupWebview();
 
     webviewPanel.onDidDispose(() => {
@@ -136,11 +141,37 @@ export class ExcalidrawEditor {
   private static onLibraryImport = ExcalidrawEditor._onLibraryImport.event;
   private textDecoder = new TextDecoder();
 
+  // Registry of live editors, keyed by document URI, used to route agent
+  // commands to the right webview (and to auto-open one when needed).
+  private static registry = new Map<string, ExcalidrawEditor>();
+  private static registrationWaiters = new Map<string, Array<() => void>>();
+
+  // Pending command-result resolvers, keyed by request id.
+  private pending = new Map<
+    string,
+    { resolve: (data: unknown) => void; reject: (err: Error) => void }
+  >();
+  private ready = false;
+  private readyResolvers: Array<() => void> = [];
+
+  private docKey() {
+    return this.document.uri.toString();
+  }
+
+  readonly webview: vscode.Webview;
+
   constructor(
     readonly document: ExcalidrawDocument,
-    readonly webview: vscode.Webview,
+    readonly panel: vscode.WebviewPanel,
     readonly context: vscode.ExtensionContext
-  ) {}
+  ) {
+    this.webview = panel.webview;
+  }
+
+  /** Bring this editor's webview to the foreground so its DOM/rAF is active. */
+  public reveal() {
+    this.panel.reveal(undefined, true);
+  }
 
   isViewOnly() {
     return (
@@ -178,6 +209,25 @@ export class ExcalidrawEditor {
           case "info":
             vscode.window.showInformationMessage(msg.content);
             break;
+          case "ready":
+            this.ready = true;
+            this.readyResolvers.forEach((resolve) => resolve());
+            this.readyResolvers = [];
+            break;
+          case "command-result": {
+            const entry = this.pending.get(msg.id);
+            if (entry) {
+              this.pending.delete(msg.id);
+              if (msg.ok) {
+                entry.resolve(msg.data);
+              } else {
+                entry.reject(
+                  new Error(msg.error || "Excalidraw command failed")
+                );
+              }
+            }
+            break;
+          }
         }
       },
       this
@@ -266,6 +316,13 @@ export class ExcalidrawEditor {
       name: this.extractName(this.document.uri),
     });
 
+    ExcalidrawEditor.registry.set(this.docKey(), this);
+    const waiters = ExcalidrawEditor.registrationWaiters.get(this.docKey());
+    if (waiters) {
+      ExcalidrawEditor.registrationWaiters.delete(this.docKey());
+      waiters.forEach((resolve) => resolve());
+    }
+
     return new vscode.Disposable(() => {
       onDidReceiveMessage.dispose();
       onDidChangeThemeConfiguration.dispose();
@@ -273,7 +330,110 @@ export class ExcalidrawEditor {
       onDidChangeLibraryConfiguration.dispose();
       onDidChangeLibrary.dispose();
       onDidChangeEmbedConfiguration.dispose();
+      if (ExcalidrawEditor.registry.get(this.docKey()) === this) {
+        ExcalidrawEditor.registry.delete(this.docKey());
+      }
+      this.ready = false;
+      this.pending.forEach((entry) =>
+        entry.reject(new Error("Excalidraw editor was closed"))
+      );
+      this.pending.clear();
     });
+  }
+
+  private whenReady(timeoutMs = 10000): Promise<void> {
+    if (this.ready) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () =>
+          reject(new Error("Excalidraw webview did not become ready in time")),
+        timeoutMs
+      );
+      this.readyResolvers.push(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Send a command to this editor's webview and await its result. Rejects on
+   * timeout, on a webview-side failure, or when the action is not allowed on a
+   * read-only document.
+   */
+  public async sendCommand(
+    action: CommandAction,
+    params?: unknown,
+    timeoutMs = 15000
+  ): Promise<unknown> {
+    if (isMutatingAction(action) && this.isViewOnly()) {
+      throw new Error(
+        "This Excalidraw document is read-only and cannot be modified."
+      );
+    }
+    await this.whenReady();
+    const id = randomId();
+    return new Promise<unknown>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`Excalidraw command "${action}" timed out`));
+      }, timeoutMs);
+      this.pending.set(id, {
+        resolve: (data) => {
+          clearTimeout(timer);
+          resolve(data);
+        },
+        reject: (err) => {
+          clearTimeout(timer);
+          reject(err);
+        },
+      });
+      this.webview.postMessage({ type: "command", id, action, params });
+    });
+  }
+
+  /** Returns a live editor for the given document URI, if one is open. */
+  public static getLiveEditor(uri: vscode.Uri): ExcalidrawEditor | undefined {
+    return ExcalidrawEditor.registry.get(uri.toString());
+  }
+
+  /**
+   * Resolves a live editor for the given document, opening the file in the
+   * Excalidraw custom editor first if none is currently open.
+   */
+  public static async resolveEditor(
+    uri: vscode.Uri,
+    timeoutMs = 15000
+  ): Promise<ExcalidrawEditor> {
+    const existing = ExcalidrawEditor.registry.get(uri.toString());
+    if (existing) {
+      return existing;
+    }
+
+    const key = uri.toString();
+    const registered = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("Timed out opening the Excalidraw editor")),
+        timeoutMs
+      );
+      const waiters = ExcalidrawEditor.registrationWaiters.get(key) || [];
+      waiters.push(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+      ExcalidrawEditor.registrationWaiters.set(key, waiters);
+    });
+
+    await showEditor(uri);
+    await registered;
+
+    const editor = ExcalidrawEditor.registry.get(key);
+    if (!editor) {
+      throw new Error("Failed to resolve the Excalidraw editor after opening");
+    }
+    return editor;
   }
 
   private getImageParams() {

@@ -1,5 +1,33 @@
 # Changelog
 
+## 3.10.0
+
+Adds AI agent support: tools that let VS Code's Copilot agent (and external agents via MCP) read and draw on Excalidraw diagrams.
+
+### Agent tools (VS Code Language Model Tools)
+
+- Adds 25 agent tools (requires VS Code 1.95+), referenceable in agent mode:
+  - File: `create_excalidraw_diagram`, `open_excalidraw_diagram`, `list_excalidraw_diagrams`.
+  - Read: `get_excalidraw_scene`, `get_excalidraw_selection`, `get_excalidraw_appstate`, `get_excalidraw_mermaid`, `export_excalidraw_image` (PNG/SVG).
+  - Authoring: `add_excalidraw_elements`, `connect_excalidraw_elements`, `update_excalidraw_elements`, `delete_excalidraw_elements`, `set_excalidraw_scene`, `clear_excalidraw_canvas`.
+  - Styling/layout: `style_excalidraw_elements`, `select_excalidraw_elements`, `scroll_to_excalidraw_content`, `group_excalidraw_elements`, `ungroup_excalidraw_elements`, `frame_excalidraw_elements`, `align_excalidraw_elements`.
+  - Images/library/convenience: `add_excalidraw_image`, `add_excalidraw_library_items`, `draw_from_mermaid`, `set_excalidraw_tool`.
+- Canvas tools drive a live editor via a new host↔webview request/response command channel; they auto-open the target diagram and are blocked on read-only documents.
+- `get_excalidraw_mermaid`: export the whole canvas as a Mermaid flowchart (rounded/ellipse/diamond shapes, `-->`/`-.->`/`==>` edge styles, frames → `subgraph`) so a model can read a diagram as text.
+- All tools return machine-readable JSON; authoring tools report each created element's final geometry and distinguish shape ids from auto-created label ids (`boundTextId`/`containerId`).
+- Fix `draw_from_mermaid` timing out when the target editor was in a background tab (reveal the webview so rendering resumes).
+
+### External agents via MCP (desktop only)
+
+- The desktop extension host can run a localhost-only, token-protected MCP HTTP server on startup, exposing the same tools to external agents (e.g. GitHub Copilot CLI, Claude, Cursor). Enable with `excalidraw.mcp.enabled`; tune the port with `excalidraw.mcp.port`.
+- Writes a discovery file to `~/.excalidraw-vscode/mcp.json` (`url`, `port`, `token`).
+- Optionally advertises the server to VS Code's own Copilot via an MCP server definition provider (on supported VS Code versions).
+
+### Internal
+
+- Ships dual bundles: web (`browser`) and node (`main`) extension hosts sharing activation logic; the MCP bridge runs only in the node host.
+- Upgrades TypeScript to 5 (`moduleResolution: bundler`, `skipLibCheck`).
+
 ## 3.9.0
 
 - add support for linking to local files

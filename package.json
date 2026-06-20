@@ -3,10 +3,10 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.9.3",
+    "version": "3.10.0",
     "publisher": "pomdtr",
     "engines": {
-        "vscode": "^1.63.0"
+        "vscode": "^1.95.0"
     },
     "categories": [
         "Visualization"
@@ -24,14 +24,858 @@
         "url": "https://github.com/pomdtr"
     },
     "activationEvents": [
-        "workspaceContains:**/*.{excalidraw,excalidraw.svg,excalidraw.png}"
+        "workspaceContains:**/*.{excalidraw,excalidraw.svg,excalidraw.png}",
+        "onLanguageModelTool:create_excalidraw_diagram",
+        "onLanguageModelTool:open_excalidraw_diagram",
+        "onLanguageModelTool:list_excalidraw_diagrams",
+        "onLanguageModelTool:get_excalidraw_scene",
+        "onLanguageModelTool:get_excalidraw_selection",
+        "onLanguageModelTool:get_excalidraw_appstate",
+        "onLanguageModelTool:get_excalidraw_mermaid",
+        "onLanguageModelTool:add_excalidraw_elements",
+        "onLanguageModelTool:connect_excalidraw_elements",
+        "onLanguageModelTool:update_excalidraw_elements",
+        "onLanguageModelTool:delete_excalidraw_elements",
+        "onLanguageModelTool:set_excalidraw_scene",
+        "onLanguageModelTool:clear_excalidraw_canvas",
+        "onLanguageModelTool:select_excalidraw_elements",
+        "onLanguageModelTool:scroll_to_excalidraw_content",
+        "onLanguageModelTool:style_excalidraw_elements",
+        "onLanguageModelTool:group_excalidraw_elements",
+        "onLanguageModelTool:ungroup_excalidraw_elements",
+        "onLanguageModelTool:frame_excalidraw_elements",
+        "onLanguageModelTool:align_excalidraw_elements",
+        "onLanguageModelTool:draw_from_mermaid",
+        "onLanguageModelTool:set_excalidraw_tool",
+        "onLanguageModelTool:export_excalidraw_image",
+        "onLanguageModelTool:add_excalidraw_image",
+        "onLanguageModelTool:add_excalidraw_library_items",
+        "onStartupFinished"
     ],
     "repository": {
         "type": "git",
         "url": "https://github.com/excalidraw/excalidraw-vscode"
     },
     "browser": "./dist/extension.js",
+    "main": "./dist/node/extension.js",
     "contributes": {
+        "mcpServerDefinitionProviders": [
+            {
+                "id": "excalidraw-mcp",
+                "label": "Excalidraw"
+            }
+        ],
+        "languageModelTools": [
+            {
+                "name": "create_excalidraw_diagram",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "createExcalidrawDiagram",
+                "displayName": "Create Excalidraw Diagram",
+                "userDescription": "Create a new Excalidraw diagram file and open it in the editor.",
+                "modelDescription": "Create a new Excalidraw diagram file and open it in the Excalidraw editor. Use this when the user wants to create, draw, or scaffold a new diagram, schema, sketch, or whiteboard. The 'path' is required and is workspace-relative unless absolute; if it lacks a known extension, '.excalidraw' is appended. Supported extensions: .excalidraw, .excalidraw.json (text scenes), .excalidraw.svg and .excalidraw.png (image scenes, created empty). Optionally pass 'content' as an Excalidraw scene JSON object or a JSON array of Excalidraw elements to seed the diagram (only honored for text scenes). Returns JSON { ok, path, created, opened }.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(new-file)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Destination file path. Workspace-relative unless absolute. If it has no Excalidraw extension, '.excalidraw' is appended."
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Optional. A JSON string containing either a full Excalidraw scene object ({ type, elements, appState, files }) or a JSON array of Excalidraw element objects to seed the diagram. Only applied to text scenes (.excalidraw / .excalidraw.json)."
+                        },
+                        "overwrite": {
+                            "type": "boolean",
+                            "description": "Overwrite the file if it already exists. Defaults to false.",
+                            "default": false
+                        }
+                    },
+                    "required": [
+                        "path"
+                    ]
+                }
+            },
+            {
+                "name": "open_excalidraw_diagram",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "openExcalidrawDiagram",
+                "displayName": "Open Excalidraw Diagram",
+                "userDescription": "Open an existing Excalidraw diagram in the editor.",
+                "modelDescription": "Open an existing Excalidraw diagram file in the Excalidraw editor. Use this when the user wants to view or edit an existing .excalidraw, .excalidraw.json, .excalidraw.svg or .excalidraw.png file. The 'path' is required and is workspace-relative unless absolute. Set 'toSide' to open the diagram in a column beside the active editor. Fails if the file does not exist. Returns JSON { ok, path, opened, toSide }.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(go-to-file)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Path of the diagram to open. Workspace-relative unless absolute."
+                        },
+                        "toSide": {
+                            "type": "boolean",
+                            "description": "Open the diagram in a new editor column beside the active one. Defaults to false.",
+                            "default": false
+                        }
+                    },
+                    "required": [
+                        "path"
+                    ]
+                }
+            },
+            {
+                "name": "list_excalidraw_diagrams",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "listExcalidrawDiagrams",
+                "displayName": "List Excalidraw Diagrams",
+                "userDescription": "List Excalidraw diagrams found in the workspace.",
+                "modelDescription": "List Excalidraw diagram files (.excalidraw, .excalidraw.json, .excalidraw.svg, .excalidraw.png) in the workspace. Use this to discover existing diagrams before opening one. Optionally restrict the search to a sub-directory via 'path' (workspace-relative unless absolute). Returns JSON { ok, diagrams, count } where diagrams is a list of workspace-relative paths.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(files)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Optional directory to search within. Workspace-relative unless absolute. Defaults to the whole workspace."
+                        }
+                    }
+                }
+            },
+            {
+                "name": "get_excalidraw_scene",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "getExcalidrawScene",
+                "displayName": "Get Excalidraw Scene",
+                "userDescription": "Read the elements currently on the Excalidraw canvas.",
+                "modelDescription": "Return the elements currently on a live Excalidraw canvas (id, type, x, y, width, height, angle, colors, text). Use this to inspect the canvas before adding, connecting, updating, or deleting elements, and to obtain element ids. Requires the diagram's editor to be open (it is opened automatically if a path is given). Returns JSON.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(eye)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        }
+                    }
+                }
+            },
+            {
+                "name": "get_excalidraw_selection",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "getExcalidrawSelection",
+                "displayName": "Get Excalidraw Selection",
+                "userDescription": "Read the ids of the currently selected Excalidraw elements.",
+                "modelDescription": "Return the ids of the elements currently selected on the Excalidraw canvas. Useful to scope subsequent edits to the user's selection. Returns JSON { selectedElementIds }.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(eye)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        }
+                    }
+                }
+            },
+            {
+                "name": "get_excalidraw_appstate",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "getExcalidrawAppState",
+                "displayName": "Get Excalidraw App State",
+                "userDescription": "Read the Excalidraw viewport and default item styles.",
+                "modelDescription": "Return the canvas app state: scroll position, zoom, theme, background color, and the current default stroke/background colors. Returns JSON.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(eye)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        }
+                    }
+                }
+            },
+            {
+                "name": "get_excalidraw_mermaid",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "mermaid"
+                ],
+                "toolReferenceName": "getExcalidrawMermaid",
+                "displayName": "Get Excalidraw As Mermaid",
+                "userDescription": "Read the whole canvas as a Mermaid flowchart (text).",
+                "modelDescription": "Return the entire canvas as a Mermaid flowchart so the diagram can be read as text. Shapes become nodes labelled with their bound text: rectangle -> [..], rounded rectangle -> (..), ellipse -> ((..)), diamond -> {..}. Bound arrows/lines become edges with their labels and style preserved: normal -->, dashed -.->, thick ==>. Excalidraw frames become Mermaid subgraphs containing their member nodes. Use this to 'see' a diagram's structure compactly before editing. Best for graph/flowchart-like diagrams; freedraw strokes, images, and text not connected by arrows are not represented. Returns JSON { ok, mermaid, nodeCount, edgeCount, subgraphCount }.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(type-hierarchy)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        }
+                    }
+                }
+            },
+            {
+                "name": "add_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "addExcalidrawElements",
+                "displayName": "Add Excalidraw Elements",
+                "userDescription": "Draw new elements onto the Excalidraw canvas.",
+                "modelDescription": "Append new elements to a live Excalidraw canvas. This is the primary drawing tool. 'elements' is an array of Excalidraw element skeletons. Supported skeleton types: rectangle, ellipse, diamond (each may include a 'label' object with 'text'), text (requires 'text'), line, arrow (may include 'start'/'end' that bind to element ids or inline shapes, and a 'label'), image (requires 'fileId'), frame (requires 'children' ids). Common props: x, y, width, height, strokeColor, backgroundColor, fillStyle, strokeWidth, roughness. Coordinates are canvas pixels; call get_excalidraw_scene first to plan positions. Returns JSON { ok, ids, added, elements }, where 'elements' lists each created node as { id, type, x, y, width, height, containerId?, boundTextId? }. The reported width/height are the FINAL dimensions: a shape with a 'label' may be grown beyond a requested size so the text fits (diamonds need extra room), and a label reports its container via containerId while the container reports its label via boundTextId. Use these returned dimensions (or get_excalidraw_scene) to place adjacent elements.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(add)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "elements": {
+                            "type": "array",
+                            "description": "Array of Excalidraw element skeleton objects to add.",
+                            "items": {
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": [
+                        "elements"
+                    ]
+                }
+            },
+            {
+                "name": "connect_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "connectExcalidrawElements",
+                "displayName": "Connect Excalidraw Elements",
+                "userDescription": "Draw a bound arrow between two existing elements.",
+                "modelDescription": "Draw an arrow that binds to two existing elements by id (endpoints follow the shapes when moved). Provide startId and endId from get_excalidraw_scene, and an optional label. Returns JSON { ok, ids, elements } including the arrow and, if a label was given, the auto-created label text (reported as boundTextId on the arrow).",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(arrow-right)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "startId": {
+                            "type": "string",
+                            "description": "Id of the element the arrow starts from."
+                        },
+                        "endId": {
+                            "type": "string",
+                            "description": "Id of the element the arrow points to."
+                        },
+                        "label": {
+                            "type": "string",
+                            "description": "Optional text label on the arrow."
+                        }
+                    },
+                    "required": [
+                        "startId",
+                        "endId"
+                    ]
+                }
+            },
+            {
+                "name": "update_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "updateExcalidrawElements",
+                "displayName": "Update Excalidraw Elements",
+                "userDescription": "Move, resize, restyle, or re-text existing elements.",
+                "modelDescription": "Patch existing elements by id. 'updates' is an array of objects, each with an 'id' plus the properties to change: x, y (move), width, height (resize), angle (rotate), text, strokeColor, backgroundColor, fillStyle, strokeWidth, opacity, etc. Use get_excalidraw_scene to obtain ids. Returns the updated ids.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(edit)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "updates": {
+                            "type": "array",
+                            "description": "Array of { id, ...propertiesToChange } objects.",
+                            "items": {
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": [
+                        "updates"
+                    ]
+                }
+            },
+            {
+                "name": "delete_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "deleteExcalidrawElements",
+                "displayName": "Delete Excalidraw Elements",
+                "userDescription": "Delete elements from the Excalidraw canvas.",
+                "modelDescription": "Delete elements from the canvas by id. Provide 'ids' (from get_excalidraw_scene). Returns the number deleted.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(trash)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Ids of the elements to delete.",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required": [
+                        "ids"
+                    ]
+                }
+            },
+            {
+                "name": "set_excalidraw_scene",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "setExcalidrawScene",
+                "displayName": "Set Excalidraw Scene",
+                "userDescription": "Replace the entire canvas with new elements.",
+                "modelDescription": "Replace ALL elements on the canvas with a new set. 'elements' is an array of Excalidraw element skeletons (same format as add_excalidraw_elements). Destructive: use add_excalidraw_elements to append instead. Returns the created element ids.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(replace-all)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "elements": {
+                            "type": "array",
+                            "description": "Array of Excalidraw element skeleton objects that become the whole scene.",
+                            "items": {
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "required": [
+                        "elements"
+                    ]
+                }
+            },
+            {
+                "name": "clear_excalidraw_canvas",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "clearExcalidrawCanvas",
+                "displayName": "Clear Excalidraw Canvas",
+                "userDescription": "Remove all elements from the canvas.",
+                "modelDescription": "Remove every element from the canvas, leaving it blank. Destructive.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(clear-all)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        }
+                    }
+                }
+            },
+            {
+                "name": "select_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "selectExcalidrawElements",
+                "displayName": "Select Excalidraw Elements",
+                "userDescription": "Select elements on the canvas by id.",
+                "modelDescription": "Programmatically select elements on the canvas by id (highlights them for the user). Provide 'ids'. Returns the selected ids.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(check)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Ids of the elements to select.",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required": [
+                        "ids"
+                    ]
+                }
+            },
+            {
+                "name": "scroll_to_excalidraw_content",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "scrollToExcalidrawContent",
+                "displayName": "Scroll Excalidraw To Content",
+                "userDescription": "Zoom and scroll the canvas to fit content.",
+                "modelDescription": "Zoom and scroll the canvas to fit the given element ids, or the whole drawing when 'ids' is omitted.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(zoom-in)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Optional element ids to fit. Defaults to the whole scene.",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "name": "style_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "styleExcalidrawElements",
+                "displayName": "Style Excalidraw Elements",
+                "userDescription": "Change the appearance of elements on the canvas.",
+                "modelDescription": "Apply style properties to existing elements by id. 'ids' selects the targets; 'style' is an object of properties to set: strokeColor, backgroundColor, fillStyle (hachure/cross-hatch/solid), strokeWidth, strokeStyle (solid/dashed/dotted), roughness, roundness, opacity, and for text fontSize/fontFamily/textAlign. Use get_excalidraw_scene for ids.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(paintcan)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Ids of the elements to style.",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "style": {
+                            "type": "object",
+                            "description": "Style properties to apply (e.g. { strokeColor, backgroundColor, fillStyle, strokeWidth, opacity })."
+                        }
+                    },
+                    "required": [
+                        "ids",
+                        "style"
+                    ]
+                }
+            },
+            {
+                "name": "group_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "groupExcalidrawElements",
+                "displayName": "Group Excalidraw Elements",
+                "userDescription": "Group elements together on the canvas.",
+                "modelDescription": "Group two or more existing elements into a single group by id. Returns the new groupId.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(group-by-ref-type)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Ids of at least two elements to group.",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required": [
+                        "ids"
+                    ]
+                }
+            },
+            {
+                "name": "ungroup_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "ungroupExcalidrawElements",
+                "displayName": "Ungroup Excalidraw Elements",
+                "userDescription": "Remove grouping from elements on the canvas.",
+                "modelDescription": "Ungroup the given elements by id (clears their group membership).",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(ungroup-by-ref-type)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Ids of the elements to ungroup.",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required": [
+                        "ids"
+                    ]
+                }
+            },
+            {
+                "name": "frame_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "frameExcalidrawElements",
+                "displayName": "Frame Excalidraw Elements",
+                "userDescription": "Wrap elements in a named frame.",
+                "modelDescription": "Create a frame around the given elements by id, with an optional name. Returns the new frameId.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(window)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Ids of the elements to enclose in the frame.",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Optional frame name."
+                        }
+                    },
+                    "required": [
+                        "ids"
+                    ]
+                }
+            },
+            {
+                "name": "align_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "alignExcalidrawElements",
+                "displayName": "Align Excalidraw Elements",
+                "userDescription": "Align elements on the canvas.",
+                "modelDescription": "Align two or more elements by id along a shared edge or center. 'align' is one of: left, right, centerX (horizontal center), top, bottom, centerY (vertical center).",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(layout)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Ids of at least two elements to align.",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "align": {
+                            "type": "string",
+                            "description": "Alignment mode.",
+                            "enum": [
+                                "left",
+                                "right",
+                                "centerX",
+                                "top",
+                                "bottom",
+                                "centerY"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "ids",
+                        "align"
+                    ]
+                }
+            },
+            {
+                "name": "draw_from_mermaid",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "mermaid"
+                ],
+                "toolReferenceName": "drawFromMermaid",
+                "displayName": "Draw From Mermaid",
+                "userDescription": "Convert a Mermaid diagram into Excalidraw elements.",
+                "modelDescription": "Convert a Mermaid diagram definition (flowchart, sequence, class, etc.) into Excalidraw elements and add them to the canvas. Pass the Mermaid source as 'mermaid'. Great for quickly scaffolding a structured diagram.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(type-hierarchy)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "mermaid": {
+                            "type": "string",
+                            "description": "Mermaid diagram definition source."
+                        }
+                    },
+                    "required": [
+                        "mermaid"
+                    ]
+                }
+            },
+            {
+                "name": "set_excalidraw_tool",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "setExcalidrawTool",
+                "displayName": "Set Excalidraw Tool",
+                "userDescription": "Switch the active Excalidraw drawing tool.",
+                "modelDescription": "Switch the active tool in the Excalidraw editor (for assisted manual drawing). 'tool' is one of: selection, rectangle, ellipse, diamond, arrow, line, text, freedraw, image, eraser.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(tools)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "tool": {
+                            "type": "string",
+                            "description": "The tool to activate.",
+                            "enum": [
+                                "selection",
+                                "rectangle",
+                                "ellipse",
+                                "diamond",
+                                "arrow",
+                                "line",
+                                "text",
+                                "freedraw",
+                                "image",
+                                "eraser"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "tool"
+                    ]
+                }
+            },
+            {
+                "name": "export_excalidraw_image",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "exportExcalidrawImage",
+                "displayName": "Export Excalidraw Image",
+                "userDescription": "Export the canvas to a PNG or SVG file.",
+                "modelDescription": "Render the current canvas to an image file so it can be viewed or embedded. 'outPath' is the destination file (workspace-relative unless absolute); 'format' is png (default) or svg. Returns the written path.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(device-camera)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Source diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "outPath": {
+                            "type": "string",
+                            "description": "Destination image file path (workspace-relative unless absolute)."
+                        },
+                        "format": {
+                            "type": "string",
+                            "description": "Image format. Defaults to png.",
+                            "enum": [
+                                "png",
+                                "svg"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "outPath"
+                    ]
+                }
+            },
+            {
+                "name": "add_excalidraw_image",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "addExcalidrawImage",
+                "displayName": "Add Excalidraw Image",
+                "userDescription": "Embed an image file onto the canvas.",
+                "modelDescription": "Embed an image file onto the canvas. 'imagePath' is the image to embed (workspace-relative unless absolute); optional x, y, width, height position and size it. Returns the created element id.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(file-media)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "imagePath": {
+                            "type": "string",
+                            "description": "Path of the image file to embed."
+                        },
+                        "x": {
+                            "type": "number",
+                            "description": "Optional x position."
+                        },
+                        "y": {
+                            "type": "number",
+                            "description": "Optional y position."
+                        },
+                        "width": {
+                            "type": "number",
+                            "description": "Optional width."
+                        },
+                        "height": {
+                            "type": "number",
+                            "description": "Optional height."
+                        }
+                    },
+                    "required": [
+                        "imagePath"
+                    ]
+                }
+            },
+            {
+                "name": "add_excalidraw_library_items",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "addExcalidrawLibraryItems",
+                "displayName": "Add Excalidraw Library Items",
+                "userDescription": "Import items into the Excalidraw library.",
+                "modelDescription": "Import reusable components into the Excalidraw library, available across open editors. 'library' is an .excalidrawlib JSON string.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(library)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "library": {
+                            "type": "string",
+                            "description": "An .excalidrawlib JSON string to import."
+                        }
+                    },
+                    "required": [
+                        "library"
+                    ]
+                }
+            }
+        ],
         "commands": [
             {
                 "command": "excalidraw.updateTheme",
@@ -242,6 +1086,16 @@
                             "exportWithBackground": true,
                             "exportWithDarkMode": false
                         }
+                    },
+                    "excalidraw.mcp.enabled": {
+                        "type": "boolean",
+                        "default": false,
+                        "markdownDescription": "Enable the Excalidraw MCP bridge so external agents (e.g. Copilot CLI) can control diagrams. Runs a localhost-only, token-protected HTTP MCP server in the desktop (Node) extension host. Not available in web (vscode.dev)."
+                    },
+                    "excalidraw.mcp.port": {
+                        "type": "number",
+                        "default": 0,
+                        "markdownDescription": "Preferred port for the MCP bridge server. Use `0` to pick a free port automatically (recommended). The actual port and access token are written to a discovery file (`~/.excalidraw-vscode/mcp.json`)."
                     }
                 }
             }
@@ -380,7 +1234,7 @@
     "devDependencies": {
         "@excalidraw/eslint-config": "^1.0.3",
         "@types/node": "^18.11.0",
-        "@types/vscode": "^1.63.0",
+        "@types/vscode": "^1.95.0",
         "@typescript-eslint/eslint-plugin": "^5.40.0",
         "@typescript-eslint/parser": "^5.40.0",
         "@vscode/test-web": "*",
@@ -389,12 +1243,14 @@
         "eslint-plugin-prettier": "^4.2.1",
         "prettier": "^2.7.1",
         "ts-loader": "^9.4.1",
-        "typescript": "^4.8.4",
+        "typescript": "^5.7.2",
         "webpack": "^5.74.0",
         "webpack-cli": "^4.10.0"
     },
     "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.29.0",
         "js-base64": "^3.7.2",
-        "path-browserify": "^1.0.1"
+        "path-browserify": "^1.0.1",
+        "zod": "^3.25.76"
     }
 }
