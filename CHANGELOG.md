@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.13.0
+
+Lets agents browse and use the Excalidraw library.
+
+- Add `get_excalidraw_library`: list the reusable components in the library (id, name, element count).
+- Add `place_excalidraw_library_item`: stamp a library item onto the canvas by id/index (or raw elements) at an optional position; the item is cloned with fresh ids, preserving internal labels, bindings, and grouping.
+- (`add_excalidraw_library_items` already allowed importing an `.excalidrawlib` into the library.)
+
 ## 3.12.0
 
 Rounds out coverage of Excalidraw's editor actions for agents.

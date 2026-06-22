@@ -363,3 +363,37 @@ Closes the gaps vs. Excalidraw's UI actions. Tool count is now **34**.
 - [ ] flip mirrors a multi-element group; distribute gives equal gaps.
 - [ ] set link/arrowheads apply and clear correctly.
 - [ ] set_excalidraw_tool accepts magicframe/embeddable.
+
+---
+
+## Addendum 5 — 2026-06-22 (use the library)
+
+Agents can now browse and place library items, not just import them. Tool count is now **36**.
+
+### New tools
+- **get_excalidraw_library** `{ path? }` — list the reusable components in the library. Returns
+  `{ ok, count, items: [{ index, id, name, status, elementCount }] }`. Supports both `.excalidrawlib`
+  v2 (`libraryItems`) and v1 (`library`) formats.
+- **place_excalidraw_library_item** `{ path?, id? | index? | elements?, x?, y? }` — stamp a library
+  item onto the canvas. Identify it by `id`/`index` (from `get_excalidraw_library`) or pass raw
+  `elements`. The item is cloned with fresh ids, preserving internal bound labels, arrow bindings,
+  and grouping; optional `x`/`y` move the item's top-left corner. Returns `{ ok, ids, placed }`.
+
+(`add_excalidraw_library_items` — import an `.excalidrawlib` JSON string — was already present.)
+
+### Test steps
+1. Ensure the library has items (the bundled `examples/library.excalidrawlib` has 17), or import some
+   with `add_excalidraw_library_items`.
+2. `get_excalidraw_library({})` → returns the item list; note an `index`/`id` and its `elementCount`.
+3. `place_excalidraw_library_item({ index: 0, x: 200, y: 200 })` → the item's shapes appear on the
+   canvas at ~200,200 with new ids; multi-element items keep their grouping and any labels/arrows.
+4. `place_excalidraw_library_item({ id: "<id from step 2>" })` (no x/y) → placed at the item's saved
+   coordinates.
+5. Place the same item twice → two independent copies (different ids), confirming clone isolation.
+6. Error cases: empty library → clear error; bad id/index → "Library item not found".
+
+### Updated regression checklist (this addendum)
+- [ ] `get_excalidraw_library` lists items with index/id/elementCount.
+- [ ] `place_excalidraw_library_item` by index and by id both stamp the item with fresh ids.
+- [ ] Multi-element items keep grouping/labels/bindings after placing.
+- [ ] Placing twice yields independent copies; bad selector errors clearly.

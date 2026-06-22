@@ -683,6 +683,75 @@ async function runAction(
       };
     }
 
+    case "placeLibraryElements": {
+      const src: any[] = params.elements;
+      if (!Array.isArray(src) || src.length === 0) {
+        throw new Error("No library item elements to place.");
+      }
+      const minX = Math.min(...src.map((e) => e.x ?? 0));
+      const minY = Math.min(...src.map((e) => e.y ?? 0));
+      let dx = 0;
+      let dy = 0;
+      if (params.x !== undefined) {
+        dx = Number(params.x) - minX;
+      }
+      if (params.y !== undefined) {
+        dy = Number(params.y) - minY;
+      }
+
+      // Clone with fresh ids, remapping internal references so the placed copy
+      // is self-contained (containers/labels, arrow bindings, and grouping).
+      const idMap = new Map<string, string>();
+      for (const el of src) {
+        idMap.set(el.id, randomId());
+      }
+      const groupRemap = new Map<string, string>();
+      const clones = src.map((el) => {
+        const clone: any = {
+          ...el,
+          id: idMap.get(el.id),
+          x: (el.x ?? 0) + dx,
+          y: (el.y ?? 0) + dy,
+          index: null,
+        };
+        if (el.containerId) {
+          clone.containerId = idMap.get(el.containerId) ?? null;
+        }
+        if (Array.isArray(el.boundElements)) {
+          clone.boundElements = el.boundElements
+            .filter((b: any) => idMap.has(b.id))
+            .map((b: any) => ({ ...b, id: idMap.get(b.id) }));
+        }
+        if (el.startBinding) {
+          clone.startBinding = idMap.has(el.startBinding.elementId)
+            ? {
+                ...el.startBinding,
+                elementId: idMap.get(el.startBinding.elementId),
+              }
+            : null;
+        }
+        if (el.endBinding) {
+          clone.endBinding = idMap.has(el.endBinding.elementId)
+            ? {
+                ...el.endBinding,
+                elementId: idMap.get(el.endBinding.elementId),
+              }
+            : null;
+        }
+        if (Array.isArray(el.groupIds)) {
+          clone.groupIds = el.groupIds.map((g: string) => {
+            if (!groupRemap.has(g)) {
+              groupRemap.set(g, randomId());
+            }
+            return groupRemap.get(g);
+          });
+        }
+        return clone;
+      });
+      api.updateScene({ elements: [...api.getSceneElements(), ...clones] });
+      return { ids: clones.map((c) => c.id), placed: clones.length };
+    }
+
     case "drawFromMermaid": {
       const { elements: skeleton, files } = await parseMermaidToExcalidraw(
         params.mermaid,

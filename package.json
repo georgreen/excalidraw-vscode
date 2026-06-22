@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.12.0",
+    "version": "3.13.0",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -59,6 +59,8 @@
         "onLanguageModelTool:export_excalidraw_image",
         "onLanguageModelTool:add_excalidraw_image",
         "onLanguageModelTool:add_excalidraw_library_items",
+        "onLanguageModelTool:get_excalidraw_library",
+        "onLanguageModelTool:place_excalidraw_library_item",
         "onStartupFinished"
     ],
     "repository": {
@@ -1256,6 +1258,77 @@
                     "required": [
                         "library"
                     ]
+                }
+            },
+            {
+                "name": "get_excalidraw_library",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "library"
+                ],
+                "toolReferenceName": "getExcalidrawLibrary",
+                "displayName": "Get Excalidraw Library",
+                "userDescription": "List items in the Excalidraw library.",
+                "modelDescription": "List the reusable components currently in the Excalidraw library. Returns JSON { count, items: [{ index, id, name, status, elementCount }] }. Use an item's id or index with place_excalidraw_library_item to stamp it onto the canvas.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(library)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        }
+                    }
+                }
+            },
+            {
+                "name": "place_excalidraw_library_item",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "library"
+                ],
+                "toolReferenceName": "placeExcalidrawLibraryItem",
+                "displayName": "Place Excalidraw Library Item",
+                "userDescription": "Stamp a library item onto the canvas.",
+                "modelDescription": "Place (stamp) a library item onto the canvas. Identify the item by 'id' or 'index' from get_excalidraw_library, or pass raw 'elements'. Optional 'x'/'y' position the item's top-left corner (defaults to the item's saved coordinates). The item is cloned with fresh ids (internal bindings/labels/groups preserved). Returns { ok, ids, placed }.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(symbol-misc)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "id": {
+                            "type": "string",
+                            "description": "Library item id (from get_excalidraw_library)."
+                        },
+                        "index": {
+                            "type": "number",
+                            "description": "Library item index (alternative to id)."
+                        },
+                        "elements": {
+                            "type": "array",
+                            "description": "Raw Excalidraw elements to place (alternative to id/index).",
+                            "items": {
+                                "type": "object"
+                            }
+                        },
+                        "x": {
+                            "type": "number",
+                            "description": "Optional x for the item's left edge."
+                        },
+                        "y": {
+                            "type": "number",
+                            "description": "Optional y for the item's top edge."
+                        }
+                    }
                 }
             }
         ],

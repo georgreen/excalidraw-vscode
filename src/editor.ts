@@ -482,6 +482,11 @@ export class ExcalidrawEditor {
     this._onLibraryImport.fire({ library });
   }
 
+  /** Load the current library content (workspace file or global storage). */
+  public async getLibrary(): Promise<string | undefined> {
+    return this.loadLibrary(await this.getLibraryUri());
+  }
+
   public async loadLibrary(libraryUri?: vscode.Uri) {
     if (!libraryUri) {
       return this.context.globalState.get<string>("library");

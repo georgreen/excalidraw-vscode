@@ -5,6 +5,8 @@ import {
   exportImageToFile,
   addImageFromFile,
   saveDiagram,
+  getLibrary,
+  placeLibraryItem,
 } from "../canvasTools";
 import { createDiagram, openDiagram, listDiagrams } from "../tools";
 import { ExcalidrawEditor } from "../editor";
@@ -493,6 +495,37 @@ export function createMcpServer(version: string): McpServer {
       ExcalidrawEditor.importLibrary(library);
       return result({ ok: true, imported: true });
     }
+  );
+
+  server.registerTool(
+    "get_excalidraw_library",
+    {
+      description:
+        "List the items currently in the Excalidraw library (reusable components). Returns { count, items: [{ index, id, name, status, elementCount }] }. Use the id or index with place_excalidraw_library_item.",
+      inputSchema: { path: PATH },
+    },
+    async ({ path }) => result({ ok: true, ...(await getLibrary(path)) })
+  );
+
+  server.registerTool(
+    "place_excalidraw_library_item",
+    {
+      description:
+        "Stamp a library item onto the canvas. Identify the item by 'id' or 'index' (from get_excalidraw_library), or pass raw 'elements'. Optional x/y position the item's top-left. Returns the created element ids.",
+      inputSchema: {
+        path: PATH,
+        id: z.string().optional(),
+        index: z.number().optional(),
+        elements: z.array(z.any()).optional(),
+        x: z.number().optional(),
+        y: z.number().optional(),
+      },
+    },
+    async ({ path, id, index, elements, x, y }) =>
+      result({
+        ok: true,
+        ...(await placeLibraryItem(path, { id, index, elements }, x, y)),
+      })
   );
 
   return server;

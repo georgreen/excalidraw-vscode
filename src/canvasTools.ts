@@ -425,6 +425,145 @@ class AddLibraryItemsTool implements vscode.LanguageModelTool<LibraryInput> {
   }
 }
 
+interface NormalizedLibraryItem {
+  id: string;
+  name?: string;
+  status?: string;
+  elements: any[];
+}
+
+/** Parse an .excalidrawlib JSON string into a normalized item list (v1 + v2). */
+function parseLibraryItems(raw?: string): NormalizedLibraryItem[] {
+  if (!raw) {
+    return [];
+  }
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  // v2: { libraryItems: [{ id, status, name?, elements }] }
+  if (Array.isArray(parsed?.libraryItems)) {
+    return parsed.libraryItems.map((it: any, i: number) => ({
+      id: it.id ?? `item-${i}`,
+      name: it.name,
+      status: it.status,
+      elements: Array.isArray(it.elements) ? it.elements : [],
+    }));
+  }
+  // v1: { library: [ [...elements], ... ] }
+  if (Array.isArray(parsed?.library)) {
+    return parsed.library.map((els: any, i: number) => ({
+      id: `item-${i}`,
+      elements: Array.isArray(els) ? els : [],
+    }));
+  }
+  return [];
+}
+
+/** Return the items currently in the Excalidraw library. */
+export async function getLibrary(
+  pathInput?: string
+): Promise<Record<string, unknown>> {
+  const editor = await resolveTargetEditor(pathInput);
+  const items = parseLibraryItems(await editor.getLibrary());
+  return {
+    count: items.length,
+    items: items.map((it, index) => ({
+      index,
+      id: it.id,
+      name: it.name,
+      status: it.status,
+      elementCount: it.elements.length,
+    })),
+  };
+}
+
+/** Place (stamp) a library item's elements onto the canvas. */
+export async function placeLibraryItem(
+  pathInput: string | undefined,
+  selector: { id?: string; index?: number; elements?: any[] },
+  x?: number,
+  y?: number
+): Promise<Record<string, unknown>> {
+  const editor = await resolveTargetEditor(pathInput);
+  let elements = selector.elements;
+  if (!elements) {
+    const items = parseLibraryItems(await editor.getLibrary());
+    if (items.length === 0) {
+      throw new Error(
+        "The Excalidraw library is empty. Use add_excalidraw_library_items first, or pass elements directly."
+      );
+    }
+    let item: NormalizedLibraryItem | undefined;
+    if (selector.id !== undefined) {
+      item = items.find((it) => it.id === selector.id);
+    } else if (selector.index !== undefined) {
+      item = items[selector.index];
+    }
+    if (!item) {
+      throw new Error(
+        `Library item not found. Use get_excalidraw_library to list available items (got ${items.length}).`
+      );
+    }
+    elements = item.elements;
+  }
+  if (!Array.isArray(elements) || elements.length === 0) {
+    throw new Error("The selected library item has no elements to place.");
+  }
+  return asRecord(
+    await editor.sendCommand("placeLibraryElements", { elements, x, y })
+  );
+}
+
+class GetLibraryTool implements vscode.LanguageModelTool<CanvasInput> {
+  async prepareInvocation() {
+    return { invocationMessage: "Reading the Excalidraw library" };
+  }
+
+  async invoke(
+    options: vscode.LanguageModelToolInvocationOptions<CanvasInput>
+  ) {
+    return jsonResult({ ok: true, ...(await getLibrary(options.input.path)) });
+  }
+}
+
+interface PlaceLibraryInput extends CanvasInput {
+  id?: string;
+  index?: number;
+  elements?: any[];
+  x?: number;
+  y?: number;
+}
+
+class PlaceLibraryItemTool
+  implements vscode.LanguageModelTool<PlaceLibraryInput>
+{
+  async prepareInvocation(
+    options: vscode.LanguageModelToolInvocationPrepareOptions<PlaceLibraryInput>
+  ) {
+    return {
+      invocationMessage: `Placing a library item on ${describeTarget(
+        options.input.path
+      )}`,
+    };
+  }
+
+  async invoke(
+    options: vscode.LanguageModelToolInvocationOptions<PlaceLibraryInput>
+  ) {
+    const i = options.input;
+    const data = await placeLibraryItem(
+      i.path,
+      { id: i.id, index: i.index, elements: i.elements },
+      i.x,
+      i.y
+    );
+    return jsonResult({ ok: true, ...data });
+  }
+}
+
 export function registerCanvasTools(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     // --- Read tools ---
@@ -672,6 +811,11 @@ export function registerCanvasTools(context: vscode.ExtensionContext) {
     vscode.lm.registerTool(
       "add_excalidraw_library_items",
       new AddLibraryItemsTool()
+    ),
+    vscode.lm.registerTool("get_excalidraw_library", new GetLibraryTool()),
+    vscode.lm.registerTool(
+      "place_excalidraw_library_item",
+      new PlaceLibraryItemTool()
     )
   );
 }

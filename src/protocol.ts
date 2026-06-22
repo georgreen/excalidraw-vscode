@@ -34,6 +34,7 @@ export type CommandAction =
   | "frameElements"
   | "alignElements"
   | "addImage"
+  | "placeLibraryElements"
   | "addLibraryItems"
   | "drawFromMermaid"
   | "setActiveTool"
