@@ -203,6 +203,64 @@ async function runAction(
       return { updatedIds };
     }
 
+    case "moveElements": {
+      const ids: string[] = params.ids || [];
+      if (ids.length === 0) {
+        throw new Error("Provide ids of the elements to move.");
+      }
+      const all = api.getSceneElementsIncludingDeleted();
+      const byId = new Map<string, any>(all.map((e) => [e.id, e]));
+      const targetSet = new Set(ids);
+
+      // Resolve the translation delta.
+      let dx = Number(params.dx) || 0;
+      let dy = Number(params.dy) || 0;
+      if (params.x !== undefined || params.y !== undefined) {
+        const targets = ids.map((id) => byId.get(id)).filter(Boolean);
+        if (targets.length === 0) {
+          throw new Error("None of the provided ids matched an element.");
+        }
+        const minX = Math.min(...targets.map((e) => e.x));
+        const minY = Math.min(...targets.map((e) => e.y));
+        if (params.x !== undefined) {
+          dx = Number(params.x) - minX;
+        }
+        if (params.y !== undefined) {
+          dy = Number(params.y) - minY;
+        }
+      }
+      if (dx === 0 && dy === 0) {
+        throw new Error("Provide dx/dy (relative) or x/y (absolute) to move.");
+      }
+
+      // Move the targets, their bound labels, and connectors whose BOTH ends
+      // are being moved (so groups / connected shapes translate together).
+      const moveSet = new Set<string>(ids);
+      for (const el of all) {
+        if (el.type === "arrow" || el.type === "line") {
+          const s = el.startBinding?.elementId;
+          const t = el.endBinding?.elementId;
+          if (s && t && targetSet.has(s) && targetSet.has(t)) {
+            moveSet.add(el.id);
+          }
+        }
+      }
+      for (const id of Array.from(moveSet)) {
+        const el = byId.get(id);
+        for (const bound of el?.boundElements || []) {
+          if (bound.type === "text") {
+            moveSet.add(bound.id);
+          }
+        }
+      }
+
+      const next = all.map((el) =>
+        moveSet.has(el.id) ? { ...el, x: el.x + dx, y: el.y + dy } : el
+      );
+      api.updateScene({ elements: next });
+      return { movedIds: Array.from(moveSet), dx, dy };
+    }
+
     case "deleteElements": {
       const ids: string[] = params.ids || [];
       const idSet = new Set(ids);
@@ -246,6 +304,165 @@ async function runAction(
       return { selectedElementIds: ids };
     }
 
+    case "reorderElements": {
+      const ids: string[] = params.ids || [];
+      const mode: string = params.mode || "front";
+      const idSet = new Set(ids);
+      const all = api.getSceneElementsIncludingDeleted();
+      const targets = all.filter((e) => idSet.has(e.id));
+      const others = all.filter((e) => !idSet.has(e.id));
+      let ordered: any[];
+      switch (mode) {
+        case "back":
+          ordered = [...targets, ...others];
+          break;
+        case "forward": {
+          ordered = [...all];
+          for (let i = ordered.length - 2; i >= 0; i--) {
+            if (idSet.has(ordered[i].id) && !idSet.has(ordered[i + 1].id)) {
+              [ordered[i], ordered[i + 1]] = [ordered[i + 1], ordered[i]];
+            }
+          }
+          break;
+        }
+        case "backward": {
+          ordered = [...all];
+          for (let i = 1; i < ordered.length; i++) {
+            if (idSet.has(ordered[i].id) && !idSet.has(ordered[i - 1].id)) {
+              [ordered[i], ordered[i - 1]] = [ordered[i - 1], ordered[i]];
+            }
+          }
+          break;
+        }
+        case "front":
+        default:
+          ordered = [...others, ...targets];
+          break;
+      }
+      // Null the fractional indices so Excalidraw regenerates them in array order.
+      api.updateScene({
+        elements: ordered.map((e) => ({ ...e, index: null })),
+      });
+      return { reordered: ids.length, mode };
+    }
+
+    case "lockElements": {
+      const idSet = new Set<string>(params.ids || []);
+      const locked = params.locked !== false;
+      const elements = api
+        .getSceneElementsIncludingDeleted()
+        .map((el) => (idSet.has(el.id) ? { ...el, locked } : el));
+      api.updateScene({ elements });
+      return { locked, count: (params.ids || []).length };
+    }
+
+    case "duplicateElements": {
+      const ids: string[] = params.ids || [];
+      const dx = params.dx ?? 10;
+      const dy = params.dy ?? 10;
+      const all = api.getSceneElementsIncludingDeleted();
+      const byId = new Map<string, any>(all.map((e) => [e.id, e]));
+
+      // Include bound text labels of selected containers.
+      const toClone = new Set<string>(ids);
+      for (const id of ids) {
+        for (const b of byId.get(id)?.boundElements || []) {
+          if (b.type === "text") {
+            toClone.add(b.id);
+          }
+        }
+      }
+      const idMap = new Map<string, string>();
+      for (const id of toClone) {
+        idMap.set(id, randomId());
+      }
+      const clones: any[] = [];
+      for (const id of toClone) {
+        const src = byId.get(id);
+        if (!src) {
+          continue;
+        }
+        const clone: any = {
+          ...src,
+          id: idMap.get(id),
+          x: src.x + dx,
+          y: src.y + dy,
+          index: null,
+        };
+        if (src.containerId) {
+          clone.containerId = idMap.get(src.containerId) ?? null;
+        }
+        if (Array.isArray(src.boundElements)) {
+          clone.boundElements = src.boundElements
+            .filter((b: any) => idMap.has(b.id))
+            .map((b: any) => ({ ...b, id: idMap.get(b.id) }));
+        }
+        // Drop external bindings so duplicates don't claim originals' bindings.
+        clone.startBinding = null;
+        clone.endBinding = null;
+        clones.push(clone);
+      }
+      api.updateScene({ elements: [...all, ...clones] });
+      return {
+        ids: clones.map((c) => c.id),
+        idMap: Object.fromEntries(idMap),
+      };
+    }
+
+    case "flipElements": {
+      const idSet = new Set<string>(params.ids || []);
+      const axis = params.axis === "vertical" ? "vertical" : "horizontal";
+      const all = api.getSceneElementsIncludingDeleted();
+      const targets = all.filter((e) => idSet.has(e.id));
+      if (targets.length === 0) {
+        throw new Error("No matching elements to flip.");
+      }
+      const minX = Math.min(...targets.map((e) => e.x));
+      const maxX = Math.max(...targets.map((e) => e.x + (e.width || 0)));
+      const minY = Math.min(...targets.map((e) => e.y));
+      const maxY = Math.max(...targets.map((e) => e.y + (e.height || 0)));
+      const next = all.map((el) => {
+        if (!idSet.has(el.id)) {
+          return el;
+        }
+        if (axis === "horizontal") {
+          return { ...el, x: minX + maxX - (el.x + (el.width || 0)) };
+        }
+        return { ...el, y: minY + maxY - (el.y + (el.height || 0)) };
+      });
+      api.updateScene({ elements: next });
+      return { flipped: targets.length, axis };
+    }
+
+    case "setLink": {
+      const idSet = new Set<string>(params.ids || []);
+      const link = params.link ? String(params.link) : null;
+      const elements = api
+        .getSceneElementsIncludingDeleted()
+        .map((el) => (idSet.has(el.id) ? { ...el, link } : el));
+      api.updateScene({ elements });
+      return { link, count: (params.ids || []).length };
+    }
+
+    case "setArrowheads": {
+      const idSet = new Set<string>(params.ids || []);
+      const patch: AnyParams = {};
+      if (params.start !== undefined) {
+        patch.startArrowhead = params.start;
+      }
+      if (params.end !== undefined) {
+        patch.endArrowhead = params.end;
+      }
+      const elements = api.getSceneElementsIncludingDeleted().map((el) => {
+        if (!idSet.has(el.id) || (el.type !== "arrow" && el.type !== "line")) {
+          return el;
+        }
+        return { ...el, ...patch };
+      });
+      api.updateScene({ elements });
+      return { updated: (params.ids || []).length };
+    }
+
     case "scrollToContent": {
       const ids: string[] | undefined = params.ids;
       const elements = api.getSceneElements();
@@ -255,6 +472,36 @@ async function runAction(
           : elements;
       api.scrollToContent(targets, { fitToContent: true });
       return { scrolled: true };
+    }
+
+    case "panCanvas": {
+      const s = api.getAppState();
+      let scrollX = s.scrollX;
+      let scrollY = s.scrollY;
+      let zoomValue = Number(s.zoom?.value ?? 1);
+      if (params.scrollX !== undefined) {
+        scrollX = Number(params.scrollX);
+      }
+      if (params.scrollY !== undefined) {
+        scrollY = Number(params.scrollY);
+      }
+      if (params.dx !== undefined) {
+        scrollX += Number(params.dx);
+      }
+      if (params.dy !== undefined) {
+        scrollY += Number(params.dy);
+      }
+      if (params.zoom !== undefined) {
+        zoomValue = Number(params.zoom);
+      }
+      if (params.zoomDelta !== undefined) {
+        zoomValue += Number(params.zoomDelta);
+      }
+      zoomValue = Math.min(30, Math.max(0.1, zoomValue));
+      api.updateScene({
+        appState: { scrollX, scrollY, zoom: { value: zoomValue } } as any,
+      });
+      return { scrollX, scrollY, zoom: zoomValue };
     }
 
     case "styleElements": {
@@ -342,6 +589,42 @@ async function runAction(
       const maxB = Math.max(...targets.map((e) => e.y + (e.height || 0)));
       const cX = (minX + maxR) / 2;
       const cY = (minY + maxB) / 2;
+
+      // Distribute: equal gaps between elements along the axis.
+      if (mode === "distributeX" || mode === "distributeY") {
+        if (targets.length < 3) {
+          throw new Error("Provide at least three element ids to distribute.");
+        }
+        const horizontal = mode === "distributeX";
+        const sized = targets
+          .map((e) => ({
+            id: e.id,
+            pos: horizontal ? e.x : e.y,
+            size: (horizontal ? e.width : e.height) || 0,
+          }))
+          .sort((a, b) => a.pos - b.pos);
+        const first = sized[0];
+        const last = sized[sized.length - 1];
+        const span = last.pos + last.size - first.pos;
+        const totalSize = sized.reduce((s, e) => s + e.size, 0);
+        const gap = (span - totalSize) / (sized.length - 1);
+        const newPos = new Map<string, number>();
+        let cursor = first.pos;
+        for (const e of sized) {
+          newPos.set(e.id, cursor);
+          cursor += e.size + gap;
+        }
+        const elements = all.map((el) =>
+          newPos.has(el.id)
+            ? horizontal
+              ? { ...el, x: newPos.get(el.id)! }
+              : { ...el, y: newPos.get(el.id)! }
+            : el
+        );
+        api.updateScene({ elements });
+        return { distributed: targets.length, mode };
+      }
+
       const place = (el: any): AnyParams => {
         const w = el.width || 0;
         const h = el.height || 0;
@@ -360,7 +643,7 @@ async function runAction(
             return { y: cY - h / 2 };
           default:
             throw new Error(
-              `Unknown align mode "${mode}". Use left, right, centerX, top, bottom, or centerY.`
+              `Unknown align mode "${mode}". Use left, right, centerX, top, bottom, centerY, distributeX, or distributeY.`
             );
         }
       };

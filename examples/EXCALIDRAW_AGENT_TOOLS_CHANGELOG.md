@@ -243,3 +243,123 @@ text dump use `get_excalidraw_scene` (structured JSON).
 - [ ] `get_excalidraw_mermaid` on an empty canvas → `%%` placeholder, counts 0.
 - [ ] `get_excalidraw_mermaid` → `draw_from_mermaid` round-trip produces a comparable diagram.
 - [ ] (Still pending, desktop only) MCP bridge end-to-end from an external agent.
+
+---
+
+## Addendum 2 — 2026-06-21 (movement, panning & modes)
+
+Adds explicit move/drag and viewport/pan control, plus a pan mode. Tool count is now **27**.
+
+### New — `move_excalidraw_elements`
+Move/drag elements by id. Provide a relative offset `dx`/`dy` (pixels; +dx = right, +dy = down),
+or an absolute target `x`/`y` (moves the group's top-left to x/y). Bound text labels move with their
+shapes, and connectors (arrows) whose **both** endpoints are in the moved set translate too.
+Returns `{ ok, movedIds, dx, dy }`.
+
+**Test:**
+1. Add two labeled rectangles A and B and connect them with an arrow.
+2. `move_excalidraw_elements({ ids: ["<A>","<B>"], dx: 120, dy: -40 })` → both boxes, their labels,
+   and the connecting arrow shift together; re-read with `get_excalidraw_scene` to confirm new
+   coordinates and that labels stayed attached.
+3. Move a single box by `dx` only → its label moves with it. (Note: an arrow connecting it to a
+   *non-moved* box is left in place by design — move both endpoints to keep a connector attached.)
+4. Absolute: `move_excalidraw_elements({ ids:["<A>"], x: 0, y: 0 })` puts A's top-left at the origin.
+
+### New — `pan_excalidraw_canvas`
+Pan/zoom the viewport without changing any elements. Relative pan `dx`/`dy`, absolute
+`scrollX`/`scrollY`, absolute `zoom` (1 = 100%), or relative `zoomDelta`. Returns
+`{ ok, scrollX, scrollY, zoom }`. Allowed on read-only diagrams (viewport only).
+
+**Test:**
+1. `pan_excalidraw_canvas({ dx: 300, dy: 0 })` → canvas scrolls; returned `scrollX` changed.
+2. `pan_excalidraw_canvas({ zoom: 2 })` → zooms to 200%; `pan_excalidraw_canvas({ zoomDelta: -0.5 })`
+   reduces it. Zoom is clamped to 0.1–30.
+3. Contrast with `scroll_to_excalidraw_content` (which frames specific elements / the whole scene).
+
+### Changed — `set_excalidraw_tool` gained modes
+The tool enum now includes **`hand`** (pan mode), **`frame`**, and **`laser`** in addition to
+`selection` and the shape tools.
+
+**Test:** `set_excalidraw_tool({ tool: "hand" })` → editor enters pan mode (cursor changes);
+`set_excalidraw_tool({ tool: "selection" })` returns to select/move mode.
+
+### Updated regression checklist (this addendum)
+- [ ] `move_excalidraw_elements` (dx/dy and x/y): targets + labels + inter-target connectors move; counts/coords correct.
+- [ ] `pan_excalidraw_canvas`: relative/absolute scroll and zoom (incl. clamping) reflected in the return.
+- [ ] `set_excalidraw_tool` switches into `hand` (pan) and back to `selection`.
+
+---
+
+## Addendum 3 — 2026-06-21 (save)
+
+Tool count is now **28**.
+
+### New — `save_excalidraw_diagram`
+Persists the current drawing to its file via VS Code's save pipeline. Drawing edits made by the
+agent are normally only written when the user saves; this tool writes them on demand. It
+force-serializes the live scene (JSON/SVG/PNG by file type), pushes it into the document, cancels
+the pending debounced change (so the file is not immediately re-marked dirty), and invokes
+`vscode.workspace.save` (clearing the dirty state). Returns `{ ok, path, saved }`. Blocked on
+read-only documents (e.g. git diff views).
+
+**Test:**
+1. Open/create a `.excalidraw` diagram.
+2. `add_excalidraw_elements(...)` to draw something — the editor tab shows a dirty dot.
+3. `save_excalidraw_diagram({})` (or with a `path`).
+4. Confirm: the dirty dot clears, and the file on disk now contains the new elements (reopen or
+   `cat` the file). Verify the editor does **not** re-mark dirty a moment later.
+5. Repeat for a `.excalidraw.svg` and `.excalidraw.png` file — the saved file should be a valid
+   SVG/PNG with the embedded scene.
+6. Read-only: attempting to save a diagram opened from a git diff returns an error (`read-only`).
+
+### Updated regression checklist (this addendum)
+- [ ] `save_excalidraw_diagram` persists agent edits to disk and clears the dirty state for
+      `.excalidraw`, `.excalidraw.svg`, and `.excalidraw.png`.
+- [ ] After saving, the editor is not re-marked dirty by a late debounced change.
+- [ ] Saving a read-only (git) diagram errors clearly.
+
+---
+
+## Addendum 4 — 2026-06-22 (full editor-action coverage)
+
+Closes the gaps vs. Excalidraw's UI actions. Tool count is now **34**.
+
+### New tools
+- **reorder_excalidraw_elements** `{ ids, mode }` — z-order: `front` (to front), `back` (to back),
+  `forward` (one up), `backward` (one down).
+- **lock_excalidraw_elements** `{ ids, locked? }` — lock (default) or unlock (`locked:false`).
+- **duplicate_excalidraw_elements** `{ ids, dx?, dy? }` — clone elements (+ their bound labels) at
+  an offset (default 10/10). Returns `{ ok, ids, idMap }`.
+- **flip_excalidraw_elements** `{ ids, axis }` — mirror layout about the selection center
+  (`horizontal`/`vertical`).
+- **set_excalidraw_link** `{ ids, link? }` — set/clear a hyperlink (omit/empty `link` to clear).
+- **set_excalidraw_arrowheads** `{ ids, start?, end? }` — set arrow/line arrowheads
+  (arrow/bar/dot/circle/triangle/diamond/crowfoot_*; `null` for none).
+
+### Changed
+- **align_excalidraw_elements** adds `distributeX`/`distributeY` (equal-gap distribution; needs 3+).
+- **set_excalidraw_tool** enum adds `magicframe` and `embeddable` (now covers all 15 Excalidraw tools).
+
+### Test steps
+1. Add 3 overlapping rectangles A, B, C. `reorder_excalidraw_elements({ ids:["<A>"], mode:"front" })`
+   → A renders on top; `mode:"back"` → behind; `forward`/`backward` move one step (verify visually).
+2. `lock_excalidraw_elements({ ids:["<A>"] })` → A can't be selected/dragged in the UI;
+   `{ locked:false }` re-enables it.
+3. `duplicate_excalidraw_elements({ ids:["<labeled box>"] })` → a copy (with its label) appears
+   offset by 10,10; returned `ids`/`idMap` reference the new elements.
+4. Lay out 3 boxes unevenly, `align_excalidraw_elements({ ids:[...], align:"distributeX" })`
+   → equal horizontal gaps. Try `flip_excalidraw_elements({ ids:[...], axis:"horizontal" })`
+   → the group mirrors left-right (a lone symmetric shape won't visibly change — expected).
+5. `set_excalidraw_link({ ids:["<A>"], link:"https://excalidraw.com" })` → clicking A opens the link;
+   `set_excalidraw_link({ ids:["<A>"] })` (no link) clears it.
+6. Add an arrow, `set_excalidraw_arrowheads({ ids:["<arrow>"], start:"dot", end:"triangle" })`
+   → endpoints update; `end:null` removes the end head.
+7. `set_excalidraw_tool({ tool:"magicframe" })` / `{ tool:"embeddable" }` → editor switches tool.
+
+### Updated regression checklist (this addendum)
+- [ ] z-order front/back/forward/backward visibly restack elements.
+- [ ] lock/unlock toggles UI selectability.
+- [ ] duplicate clones elements + bound labels at an offset with new ids.
+- [ ] flip mirrors a multi-element group; distribute gives equal gaps.
+- [ ] set link/arrowheads apply and clear correctly.
+- [ ] set_excalidraw_tool accepts magicframe/embeddable.

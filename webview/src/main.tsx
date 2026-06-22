@@ -8,7 +8,7 @@ import ReactDOM from "react-dom";
 import { Base64 } from "js-base64";
 
 import App from "./App";
-import { sendChangesToVSCode, vscode } from "./vscode.ts";
+import { sendChangesToVSCode, serializeScene, vscode } from "./vscode.ts";
 import {
   AppState,
   BinaryFiles,
@@ -112,6 +112,10 @@ async function main() {
     };
 
     const isDirty = !initialData || config.contentType != initialContentType;
+    const onChange = debouncedOnChange(
+      sendChanges,
+      isDirty ? -1 : hashElementsVersion(initialData?.elements || [])
+    );
     ReactDOM.render(
       <React.StrictMode>
         <App
@@ -122,10 +126,11 @@ async function main() {
           name={config.name}
           viewModeEnabled={config.viewModeEnabled}
           theme={config.theme}
-          onChange={debouncedOnChange(
-            sendChanges,
-            isDirty ? -1 : hashElementsVersion(initialData.elements || [])
-          )}
+          onChange={onChange}
+          serialize={(elements, appState, files) =>
+            serializeScene(config.contentType, elements, appState, files)
+          }
+          cancelPendingChange={() => onChange.cancel()}
           imageParams={config.imageParams}
           langCode={config.langCode}
           dirty={isDirty}

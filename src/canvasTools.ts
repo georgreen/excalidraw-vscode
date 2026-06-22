@@ -162,6 +162,47 @@ interface ConnectInput extends CanvasInput {
 interface UpdateInput extends CanvasInput {
   updates: any[];
 }
+interface MoveInput extends CanvasInput {
+  ids: string[];
+  dx?: number;
+  dy?: number;
+  x?: number;
+  y?: number;
+}
+interface PanInput extends CanvasInput {
+  scrollX?: number;
+  scrollY?: number;
+  dx?: number;
+  dy?: number;
+  zoom?: number;
+  zoomDelta?: number;
+}
+interface ReorderInput extends CanvasInput {
+  ids: string[];
+  mode: string;
+}
+interface LockInput extends CanvasInput {
+  ids: string[];
+  locked?: boolean;
+}
+interface DuplicateInput extends CanvasInput {
+  ids: string[];
+  dx?: number;
+  dy?: number;
+}
+interface FlipInput extends CanvasInput {
+  ids: string[];
+  axis: string;
+}
+interface LinkInput extends CanvasInput {
+  ids: string[];
+  link?: string;
+}
+interface ArrowheadsInput extends CanvasInput {
+  ids: string[];
+  start?: string;
+  end?: string;
+}
 interface DeleteInput extends CanvasInput {
   ids: string[];
 }
@@ -273,6 +314,47 @@ export async function addImageFromFile(
   return asRecord(
     await editor.sendCommand("addImage", { dataURL, mimeType, ...dims })
   );
+}
+
+/**
+ * Persist the current drawing to disk: ask the webview to serialize the live
+ * scene, push it into the document, then invoke VS Code's save pipeline.
+ */
+export async function saveDiagram(
+  pathInput?: string
+): Promise<{ path: string; saved: boolean }> {
+  const editor = await resolveTargetEditor(pathInput);
+  const data = asRecord(await editor.sendCommand("save"));
+  if (Array.isArray(data.content)) {
+    await editor.document.update(new Uint8Array(data.content as number[]));
+  }
+  const savedUri = await vscode.workspace.save(editor.document.uri);
+  if (!savedUri) {
+    // Fallback: write the file directly if VS Code did not handle the save.
+    await editor.document.save();
+  }
+  return {
+    path: vscode.workspace.asRelativePath(editor.document.uri),
+    saved: true,
+  };
+}
+
+/** Save the current drawing via VS Code. */
+class SaveDiagramTool implements vscode.LanguageModelTool<CanvasInput> {
+  async prepareInvocation(
+    options: vscode.LanguageModelToolInvocationPrepareOptions<CanvasInput>
+  ) {
+    return {
+      invocationMessage: `Saving ${describeTarget(options.input.path)}`,
+    };
+  }
+
+  async invoke(
+    options: vscode.LanguageModelToolInvocationOptions<CanvasInput>
+  ) {
+    const result = await saveDiagram(options.input.path);
+    return jsonResult({ ok: true, ...result });
+  }
 }
 
 /** Export the canvas to an image file (host writes the bytes the webview returns). */
@@ -403,6 +485,20 @@ export function registerCanvasTools(context: vscode.ExtensionContext) {
       })
     ),
     vscode.lm.registerTool(
+      "move_excalidraw_elements",
+      new CanvasTool<MoveInput>("moveElements", {
+        buildParams: (i) => ({
+          ids: i.ids,
+          dx: i.dx,
+          dy: i.dy,
+          x: i.x,
+          y: i.y,
+        }),
+        invocationMessage: (i) =>
+          `Moving elements in ${describeTarget(i.path)}`,
+      })
+    ),
+    vscode.lm.registerTool(
       "delete_excalidraw_elements",
       new CanvasTool<DeleteInput>("deleteElements", {
         buildParams: (i) => ({ ids: i.ids }),
@@ -435,11 +531,75 @@ export function registerCanvasTools(context: vscode.ExtensionContext) {
       })
     ),
     vscode.lm.registerTool(
+      "reorder_excalidraw_elements",
+      new CanvasTool<ReorderInput>("reorderElements", {
+        buildParams: (i) => ({ ids: i.ids, mode: i.mode }),
+        invocationMessage: (i) =>
+          `Reordering elements in ${describeTarget(i.path)}`,
+      })
+    ),
+    vscode.lm.registerTool(
+      "lock_excalidraw_elements",
+      new CanvasTool<LockInput>("lockElements", {
+        buildParams: (i) => ({ ids: i.ids, locked: i.locked }),
+        invocationMessage: (i) =>
+          `${
+            i.locked === false ? "Unlocking" : "Locking"
+          } elements in ${describeTarget(i.path)}`,
+      })
+    ),
+    vscode.lm.registerTool(
+      "duplicate_excalidraw_elements",
+      new CanvasTool<DuplicateInput>("duplicateElements", {
+        buildParams: (i) => ({ ids: i.ids, dx: i.dx, dy: i.dy }),
+        invocationMessage: (i) =>
+          `Duplicating elements in ${describeTarget(i.path)}`,
+      })
+    ),
+    vscode.lm.registerTool(
+      "flip_excalidraw_elements",
+      new CanvasTool<FlipInput>("flipElements", {
+        buildParams: (i) => ({ ids: i.ids, axis: i.axis }),
+        invocationMessage: (i) =>
+          `Flipping elements in ${describeTarget(i.path)}`,
+      })
+    ),
+    vscode.lm.registerTool(
+      "set_excalidraw_link",
+      new CanvasTool<LinkInput>("setLink", {
+        buildParams: (i) => ({ ids: i.ids, link: i.link }),
+        invocationMessage: (i) =>
+          `Setting link on elements in ${describeTarget(i.path)}`,
+      })
+    ),
+    vscode.lm.registerTool(
+      "set_excalidraw_arrowheads",
+      new CanvasTool<ArrowheadsInput>("setArrowheads", {
+        buildParams: (i) => ({ ids: i.ids, start: i.start, end: i.end }),
+        invocationMessage: (i) =>
+          `Setting arrowheads in ${describeTarget(i.path)}`,
+      })
+    ),
+    vscode.lm.registerTool(
       "scroll_to_excalidraw_content",
       new CanvasTool<ScrollInput>("scrollToContent", {
         buildParams: (i) => ({ ids: i.ids }),
         invocationMessage: (i) =>
           `Scrolling ${describeTarget(i.path)} into view`,
+      })
+    ),
+    vscode.lm.registerTool(
+      "pan_excalidraw_canvas",
+      new CanvasTool<PanInput>("panCanvas", {
+        buildParams: (i) => ({
+          scrollX: i.scrollX,
+          scrollY: i.scrollY,
+          dx: i.dx,
+          dy: i.dy,
+          zoom: i.zoom,
+          zoomDelta: i.zoomDelta,
+        }),
+        invocationMessage: (i) => `Panning ${describeTarget(i.path)}`,
       })
     ),
 
@@ -506,6 +666,7 @@ export function registerCanvasTools(context: vscode.ExtensionContext) {
     ),
 
     // --- Tools that need host-side file I/O ---
+    vscode.lm.registerTool("save_excalidraw_diagram", new SaveDiagramTool()),
     vscode.lm.registerTool("export_excalidraw_image", new ExportImageTool()),
     vscode.lm.registerTool("add_excalidraw_image", new AddImageTool()),
     vscode.lm.registerTool(

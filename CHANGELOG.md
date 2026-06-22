@@ -1,5 +1,27 @@
 # Changelog
 
+## 3.12.0
+
+Rounds out coverage of Excalidraw's editor actions for agents.
+
+- Add `reorder_excalidraw_elements`: change z-order (bring to front / send to back / forward / backward).
+- Add `lock_excalidraw_elements`: lock or unlock elements.
+- Add `duplicate_excalidraw_elements`: clone elements (with their bound labels) at an offset.
+- Add `flip_excalidraw_elements`: mirror elements horizontally or vertically about the selection center.
+- Add `set_excalidraw_link`: set or clear a hyperlink on elements.
+- Add `set_excalidraw_arrowheads`: set start/end arrowheads on arrows and lines.
+- `align_excalidraw_elements` now also supports `distributeX`/`distributeY` (equal-gap distribution).
+- `set_excalidraw_tool` adds the `magicframe` and `embeddable` tools, completing the toolbar set.
+
+## 3.11.0
+
+More agent canvas control: moving/dragging elements, panning/zooming the viewport, switching modes, and saving on demand.
+
+- Add `move_excalidraw_elements`: move/drag elements by a relative offset (`dx`/`dy`) or to an absolute position (`x`/`y`). Bound labels and connectors between moved shapes move along with them.
+- Add `pan_excalidraw_canvas`: pan and zoom the viewport (relative `dx`/`dy`/`zoomDelta` or absolute `scrollX`/`scrollY`/`zoom`) without changing any elements.
+- Add `save_excalidraw_diagram`: persist the current drawing to its file via VS Code's save, so agent edits are written to disk on demand.
+- `set_excalidraw_tool` can now switch into `hand` (pan mode), `frame`, and `laser`, in addition to the selection and shape tools.
+
 ## 3.10.0
 
 Adds AI agent support: tools that let VS Code's Copilot agent (and external agents via MCP) read and draw on Excalidraw diagrams.

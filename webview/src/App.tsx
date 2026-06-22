@@ -84,6 +84,12 @@ export default function App(props: {
     appState: Partial<AppState>,
     files?: BinaryFiles
   ) => void;
+  serialize?: (
+    elements: readonly any[],
+    appState: Partial<AppState>,
+    files: BinaryFiles
+  ) => Promise<Uint8Array>;
+  cancelPendingChange?: () => void;
 }) {
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI>();
   const libraryItemsRef = useRef(props.libraryItems);
@@ -140,10 +146,43 @@ export default function App(props: {
             break;
           }
           case "command": {
-            if (excalidrawAPI) {
-              const result = await handleCommand(excalidrawAPI, message);
-              vscode.postMessage(result);
+            if (!excalidrawAPI) {
+              break;
             }
+            if (message.action === "save") {
+              // Force-serialize the current scene (bypassing the debounced
+              // onChange), hand the bytes to the host, and cancel the pending
+              // change so the file is not re-marked dirty after saving.
+              if (!props.serialize) {
+                vscode.postMessage({
+                  type: "command-result",
+                  id: message.id,
+                  ok: false,
+                  error: "Saving is not available for this document.",
+                });
+                break;
+              }
+              props.cancelPendingChange?.();
+              const appState = {
+                ...excalidrawAPI.getAppState(),
+                ...imageParams,
+                exportEmbedScene: true,
+              } as Partial<AppState>;
+              const bytes = await props.serialize(
+                excalidrawAPI.getSceneElements(),
+                appState,
+                excalidrawAPI.getFiles()
+              );
+              vscode.postMessage({
+                type: "command-result",
+                id: message.id,
+                ok: true,
+                data: { content: Array.from(bytes) },
+              });
+              break;
+            }
+            const result = await handleCommand(excalidrawAPI, message);
+            vscode.postMessage(result);
             break;
           }
         }

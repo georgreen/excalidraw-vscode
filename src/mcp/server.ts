@@ -4,6 +4,7 @@ import {
   canvasCommand,
   exportImageToFile,
   addImageFromFile,
+  saveDiagram,
 } from "../canvasTools";
 import { createDiagram, openDiagram, listDiagrams } from "../tools";
 import { ExcalidrawEditor } from "../editor";
@@ -139,6 +140,24 @@ export function createMcpServer(version: string): McpServer {
   );
 
   server.registerTool(
+    "move_excalidraw_elements",
+    {
+      description:
+        "Move (drag) elements by id. Provide a relative offset via dx/dy, or an absolute target via x/y (moves the group's top-left to x/y). Bound labels and connectors between moved shapes move too.",
+      inputSchema: {
+        path: PATH,
+        ids: z.array(z.string()),
+        dx: z.number().optional(),
+        dy: z.number().optional(),
+        x: z.number().optional(),
+        y: z.number().optional(),
+      },
+    },
+    async ({ path, ids, dx, dy, x, y }) =>
+      result(await canvasCommand(path, "moveElements", { ids, dx, dy, x, y }))
+  );
+
+  server.registerTool(
     "delete_excalidraw_elements",
     {
       description: "Delete elements from the canvas by id.",
@@ -180,6 +199,98 @@ export function createMcpServer(version: string): McpServer {
   );
 
   server.registerTool(
+    "reorder_excalidraw_elements",
+    {
+      description:
+        "Change z-order (stacking) of elements by id. mode: front (bring to front), back (send to back), forward (one step up), backward (one step down).",
+      inputSchema: {
+        path: PATH,
+        ids: z.array(z.string()),
+        mode: z.enum(["front", "back", "forward", "backward"]),
+      },
+    },
+    async ({ path, ids, mode }) =>
+      result(await canvasCommand(path, "reorderElements", { ids, mode }))
+  );
+
+  server.registerTool(
+    "lock_excalidraw_elements",
+    {
+      description:
+        "Lock or unlock elements by id (locked elements can't be selected/edited in the UI). Set locked false to unlock.",
+      inputSchema: {
+        path: PATH,
+        ids: z.array(z.string()),
+        locked: z.boolean().optional(),
+      },
+    },
+    async ({ path, ids, locked }) =>
+      result(await canvasCommand(path, "lockElements", { ids, locked }))
+  );
+
+  server.registerTool(
+    "duplicate_excalidraw_elements",
+    {
+      description:
+        "Duplicate elements by id (clones get new ids, offset by dx/dy, default 10/10). Bound text labels are duplicated with their shapes.",
+      inputSchema: {
+        path: PATH,
+        ids: z.array(z.string()),
+        dx: z.number().optional(),
+        dy: z.number().optional(),
+      },
+    },
+    async ({ path, ids, dx, dy }) =>
+      result(await canvasCommand(path, "duplicateElements", { ids, dx, dy }))
+  );
+
+  server.registerTool(
+    "flip_excalidraw_elements",
+    {
+      description:
+        "Mirror elements' layout about the selection's center along an axis. axis: horizontal or vertical.",
+      inputSchema: {
+        path: PATH,
+        ids: z.array(z.string()),
+        axis: z.enum(["horizontal", "vertical"]),
+      },
+    },
+    async ({ path, ids, axis }) =>
+      result(await canvasCommand(path, "flipElements", { ids, axis }))
+  );
+
+  server.registerTool(
+    "set_excalidraw_link",
+    {
+      description:
+        "Set (or clear) a hyperlink on elements by id. Omit 'link' or pass empty to clear.",
+      inputSchema: {
+        path: PATH,
+        ids: z.array(z.string()),
+        link: z.string().optional(),
+      },
+    },
+    async ({ path, ids, link }) =>
+      result(await canvasCommand(path, "setLink", { ids, link }))
+  );
+
+  server.registerTool(
+    "set_excalidraw_arrowheads",
+    {
+      description:
+        "Set arrowheads on arrow/line elements by id. 'start'/'end' are arrowhead types (arrow, bar, dot, circle, triangle, diamond, crowfoot_one, crowfoot_many, etc.) or null for none.",
+      inputSchema: {
+        path: PATH,
+        ids: z.array(z.string()),
+        start: z.string().nullable().optional(),
+        end: z.string().nullable().optional(),
+      },
+    },
+    async ({ path, ids, start, end }) =>
+      result(await canvasCommand(path, "setArrowheads", { ids, start, end }))
+  );
+
+  server.registerTool(
     "scroll_to_excalidraw_content",
     {
       description:
@@ -188,6 +299,34 @@ export function createMcpServer(version: string): McpServer {
     },
     async ({ path, ids }) =>
       result(await canvasCommand(path, "scrollToContent", { ids }))
+  );
+
+  server.registerTool(
+    "pan_excalidraw_canvas",
+    {
+      description:
+        "Pan/zoom the canvas viewport. Set absolute scrollX/scrollY and/or zoom, or pan relatively with dx/dy and zoom relatively with zoomDelta.",
+      inputSchema: {
+        path: PATH,
+        scrollX: z.number().optional(),
+        scrollY: z.number().optional(),
+        dx: z.number().optional(),
+        dy: z.number().optional(),
+        zoom: z.number().optional(),
+        zoomDelta: z.number().optional(),
+      },
+    },
+    async ({ path, scrollX, scrollY, dx, dy, zoom, zoomDelta }) =>
+      result(
+        await canvasCommand(path, "panCanvas", {
+          scrollX,
+          scrollY,
+          dx,
+          dy,
+          zoom,
+          zoomDelta,
+        })
+      )
   );
 
   // --- Styling / layout ---
@@ -244,11 +383,20 @@ export function createMcpServer(version: string): McpServer {
     "align_excalidraw_elements",
     {
       description:
-        "Align elements by id along a shared edge or center (left, right, centerX, top, bottom, centerY).",
+        "Align or distribute elements by id. Align modes: left, right, centerX, top, bottom, centerY. Distribute modes (3+ elements, equal gaps): distributeX, distributeY.",
       inputSchema: {
         path: PATH,
         ids: z.array(z.string()),
-        align: z.enum(["left", "right", "centerX", "top", "bottom", "centerY"]),
+        align: z.enum([
+          "left",
+          "right",
+          "centerX",
+          "top",
+          "bottom",
+          "centerY",
+          "distributeX",
+          "distributeY",
+        ]),
       },
     },
     async ({ path, ids, align }) =>
@@ -286,6 +434,16 @@ export function createMcpServer(version: string): McpServer {
     },
     async ({ path, tool }) =>
       result(await canvasCommand(path, "setActiveTool", { tool }))
+  );
+
+  server.registerTool(
+    "save_excalidraw_diagram",
+    {
+      description:
+        "Save the current drawing to disk via VS Code (serializes the live scene and persists the file).",
+      inputSchema: { path: PATH },
+    },
+    async ({ path }) => result({ ok: true, ...(await saveDiagram(path)) })
   );
 
   // --- Host-side file I/O ---

@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.10.0",
+    "version": "3.12.0",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -35,11 +35,19 @@
         "onLanguageModelTool:add_excalidraw_elements",
         "onLanguageModelTool:connect_excalidraw_elements",
         "onLanguageModelTool:update_excalidraw_elements",
+        "onLanguageModelTool:move_excalidraw_elements",
         "onLanguageModelTool:delete_excalidraw_elements",
         "onLanguageModelTool:set_excalidraw_scene",
         "onLanguageModelTool:clear_excalidraw_canvas",
         "onLanguageModelTool:select_excalidraw_elements",
+        "onLanguageModelTool:set_excalidraw_arrowheads",
+        "onLanguageModelTool:set_excalidraw_link",
+        "onLanguageModelTool:flip_excalidraw_elements",
+        "onLanguageModelTool:duplicate_excalidraw_elements",
+        "onLanguageModelTool:lock_excalidraw_elements",
+        "onLanguageModelTool:reorder_excalidraw_elements",
         "onLanguageModelTool:scroll_to_excalidraw_content",
+        "onLanguageModelTool:pan_excalidraw_canvas",
         "onLanguageModelTool:style_excalidraw_elements",
         "onLanguageModelTool:group_excalidraw_elements",
         "onLanguageModelTool:ungroup_excalidraw_elements",
@@ -47,6 +55,7 @@
         "onLanguageModelTool:align_excalidraw_elements",
         "onLanguageModelTool:draw_from_mermaid",
         "onLanguageModelTool:set_excalidraw_tool",
+        "onLanguageModelTool:save_excalidraw_diagram",
         "onLanguageModelTool:export_excalidraw_image",
         "onLanguageModelTool:add_excalidraw_image",
         "onLanguageModelTool:add_excalidraw_library_items",
@@ -354,6 +363,55 @@
                 }
             },
             {
+                "name": "move_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "moveExcalidrawElements",
+                "displayName": "Move Excalidraw Elements",
+                "userDescription": "Move (drag) elements around the canvas.",
+                "modelDescription": "Move/drag elements by id. Provide a relative offset with 'dx'/'dy' (canvas pixels; positive dx = right, positive dy = down), OR an absolute target with 'x'/'y' (moves the group's top-left corner to x/y). Bound text labels move with their shapes, and connectors (arrows) whose BOTH endpoints are in the moved set translate too. Use get_excalidraw_scene for ids and positions. Returns { movedIds, dx, dy }.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(move)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Ids of the elements to move.",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "dx": {
+                            "type": "number",
+                            "description": "Relative horizontal offset (pixels)."
+                        },
+                        "dy": {
+                            "type": "number",
+                            "description": "Relative vertical offset (pixels)."
+                        },
+                        "x": {
+                            "type": "number",
+                            "description": "Absolute target x for the group's left edge."
+                        },
+                        "y": {
+                            "type": "number",
+                            "description": "Absolute target y for the group's top edge."
+                        }
+                    },
+                    "required": [
+                        "ids"
+                    ]
+                }
+            },
+            {
                 "name": "delete_excalidraw_elements",
                 "tags": [
                     "excalidraw",
@@ -476,6 +534,254 @@
                 }
             },
             {
+                "name": "reorder_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "reorderExcalidrawElements",
+                "displayName": "Reorder Excalidraw Elements",
+                "userDescription": "Change the stacking order of elements.",
+                "modelDescription": "Change z-order (stacking) of elements by id. 'mode' is front (bring to front), back (send to back), forward (one step up), or backward (one step down). Use get_excalidraw_scene for ids.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(list-ordered)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Element ids.",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "mode": {
+                            "type": "string",
+                            "description": "Reorder direction.",
+                            "enum": [
+                                "front",
+                                "back",
+                                "forward",
+                                "backward"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "ids",
+                        "mode"
+                    ]
+                }
+            },
+            {
+                "name": "lock_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "lockExcalidrawElements",
+                "displayName": "Lock Excalidraw Elements",
+                "userDescription": "Lock or unlock elements.",
+                "modelDescription": "Lock or unlock elements by id. Locked elements can't be selected or edited in the UI. Set 'locked' to false to unlock (defaults to true = lock).",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(lock)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Element ids.",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "locked": {
+                            "type": "boolean",
+                            "description": "True to lock (default), false to unlock."
+                        }
+                    },
+                    "required": [
+                        "ids"
+                    ]
+                }
+            },
+            {
+                "name": "duplicate_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "duplicateExcalidrawElements",
+                "displayName": "Duplicate Excalidraw Elements",
+                "userDescription": "Duplicate (clone) elements.",
+                "modelDescription": "Duplicate elements by id. Clones get new ids and are offset by 'dx'/'dy' (default 10/10). Bound text labels are duplicated with their shapes. Returns the new ids and an id map.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(copy)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Element ids.",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "dx": {
+                            "type": "number",
+                            "description": "Horizontal offset for clones (default 10)."
+                        },
+                        "dy": {
+                            "type": "number",
+                            "description": "Vertical offset for clones (default 10)."
+                        }
+                    },
+                    "required": [
+                        "ids"
+                    ]
+                }
+            },
+            {
+                "name": "flip_excalidraw_elements",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "flipExcalidrawElements",
+                "displayName": "Flip Excalidraw Elements",
+                "userDescription": "Flip elements horizontally or vertically.",
+                "modelDescription": "Mirror the selected elements' layout about the selection's center along an axis. 'axis' is horizontal or vertical. Note: this mirrors positions of the group; a single symmetric shape will not visibly change.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(arrow-swap)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Element ids.",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "axis": {
+                            "type": "string",
+                            "description": "Mirror axis.",
+                            "enum": [
+                                "horizontal",
+                                "vertical"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "ids",
+                        "axis"
+                    ]
+                }
+            },
+            {
+                "name": "set_excalidraw_link",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "setExcalidrawLink",
+                "displayName": "Set Excalidraw Link",
+                "userDescription": "Set or clear a hyperlink on elements.",
+                "modelDescription": "Set (or clear) a hyperlink on elements by id. Provide 'link' as a URL, or omit/empty it to clear the link.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(link)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Element ids.",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "link": {
+                            "type": "string",
+                            "description": "URL to set, or empty to clear."
+                        }
+                    },
+                    "required": [
+                        "ids"
+                    ]
+                }
+            },
+            {
+                "name": "set_excalidraw_arrowheads",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "setExcalidrawArrowheads",
+                "displayName": "Set Excalidraw Arrowheads",
+                "userDescription": "Set arrowheads on arrows/lines.",
+                "modelDescription": "Set the start and/or end arrowhead on arrow/line elements by id. Values: arrow, bar, dot, circle, circle_outline, triangle, triangle_outline, diamond, diamond_outline, crowfoot_one, crowfoot_many, crowfoot_one_or_many, or null for none.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(arrow-right)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Element ids.",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "start": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "description": "Start arrowhead type, or null for none."
+                        },
+                        "end": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "description": "End arrowhead type, or null for none."
+                        }
+                    },
+                    "required": [
+                        "ids"
+                    ]
+                }
+            },
+            {
                 "name": "scroll_to_excalidraw_content",
                 "tags": [
                     "excalidraw",
@@ -501,6 +807,53 @@
                             "items": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            },
+            {
+                "name": "pan_excalidraw_canvas",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "panExcalidrawCanvas",
+                "displayName": "Pan Excalidraw Canvas",
+                "userDescription": "Pan and zoom the canvas viewport.",
+                "modelDescription": "Pan and zoom the canvas viewport without changing any elements. Pan relatively with 'dx'/'dy' (pixels) or jump to an absolute scroll position with 'scrollX'/'scrollY'. Zoom absolutely with 'zoom' (1 = 100%) or relatively with 'zoomDelta'. To frame specific elements instead, use scroll_to_excalidraw_content. Returns the resulting { scrollX, scrollY, zoom }.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(move)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "scrollX": {
+                            "type": "number",
+                            "description": "Absolute horizontal scroll offset."
+                        },
+                        "scrollY": {
+                            "type": "number",
+                            "description": "Absolute vertical scroll offset."
+                        },
+                        "dx": {
+                            "type": "number",
+                            "description": "Relative horizontal pan (pixels)."
+                        },
+                        "dy": {
+                            "type": "number",
+                            "description": "Relative vertical pan (pixels)."
+                        },
+                        "zoom": {
+                            "type": "number",
+                            "description": "Absolute zoom (1 = 100%). Clamped to 0.1-30."
+                        },
+                        "zoomDelta": {
+                            "type": "number",
+                            "description": "Relative zoom change."
                         }
                     }
                 }
@@ -656,7 +1009,7 @@
                 "toolReferenceName": "alignExcalidrawElements",
                 "displayName": "Align Excalidraw Elements",
                 "userDescription": "Align elements on the canvas.",
-                "modelDescription": "Align two or more elements by id along a shared edge or center. 'align' is one of: left, right, centerX (horizontal center), top, bottom, centerY (vertical center).",
+                "modelDescription": "Align or distribute two or more elements by id. Align modes: left, right, centerX (horizontal center), top, bottom, centerY (vertical center). Distribute modes (need 3+ elements; equal gaps): distributeX, distributeY.",
                 "canBeReferencedInPrompt": true,
                 "icon": "$(layout)",
                 "inputSchema": {
@@ -682,7 +1035,9 @@
                                 "centerX",
                                 "top",
                                 "bottom",
-                                "centerY"
+                                "centerY",
+                                "distributeX",
+                                "distributeY"
                             ]
                         }
                     },
@@ -733,7 +1088,7 @@
                 "toolReferenceName": "setExcalidrawTool",
                 "displayName": "Set Excalidraw Tool",
                 "userDescription": "Switch the active Excalidraw drawing tool.",
-                "modelDescription": "Switch the active tool in the Excalidraw editor (for assisted manual drawing). 'tool' is one of: selection, rectangle, ellipse, diamond, arrow, line, text, freedraw, image, eraser.",
+                "modelDescription": "Switch the active tool/mode in the Excalidraw editor. Use 'hand' to enter pan mode, 'selection' for the default select/move mode, or a shape tool (rectangle, ellipse, diamond, arrow, line, text, freedraw, image, frame, laser, eraser) for assisted manual drawing.",
                 "canBeReferencedInPrompt": true,
                 "icon": "$(tools)",
                 "inputSchema": {
@@ -745,9 +1100,10 @@
                         },
                         "tool": {
                             "type": "string",
-                            "description": "The tool to activate.",
+                            "description": "The tool/mode to activate.",
                             "enum": [
                                 "selection",
+                                "hand",
                                 "rectangle",
                                 "ellipse",
                                 "diamond",
@@ -756,13 +1112,40 @@
                                 "text",
                                 "freedraw",
                                 "image",
-                                "eraser"
+                                "frame",
+                                "laser",
+                                "eraser",
+                                "magicframe",
+                                "embeddable"
                             ]
                         }
                     },
                     "required": [
                         "tool"
                     ]
+                }
+            },
+            {
+                "name": "save_excalidraw_diagram",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing"
+                ],
+                "toolReferenceName": "saveExcalidrawDiagram",
+                "displayName": "Save Excalidraw Diagram",
+                "userDescription": "Save the current drawing to disk.",
+                "modelDescription": "Persist the current drawing to its file via VS Code's save. Use this after making changes with the drawing tools so they are written to disk (drawing edits are otherwise only saved when the user saves). Serializes the live scene (JSON/SVG/PNG depending on the file type) and clears the dirty state. Returns JSON { ok, path, saved }.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(save)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        }
+                    }
                 }
             },
             {
@@ -1007,48 +1390,48 @@
                         ],
                         "enumDescriptions": [
                             "English",
-                            "मराठी",
-                            "Tiếng Việt",
-                            "繁體中文",
-                            "简体中文",
-                            "Українська",
-                            "Türkçe",
-                            "Slovenščina",
+                            "\u092e\u0930\u093e\u0920\u0940",
+                            "Ti\u1ebfng Vi\u1ec7t",
+                            "\u7e41\u9ad4\u4e2d\u6587",
+                            "\u7b80\u4f53\u4e2d\u6587",
+                            "\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430",
+                            "T\u00fcrk\u00e7e",
+                            "Sloven\u0161\u010dina",
                             "Svenska",
-                            "Slovenčina",
-                            "Русский",
-                            "Română",
-                            "Português",
-                            "Português Brasileiro",
+                            "Sloven\u010dina",
+                            "\u0420\u0443\u0441\u0441\u043a\u0438\u0439",
+                            "Rom\u00e2n\u0103",
+                            "Portugu\u00eas",
+                            "Portugu\u00eas Brasileiro",
                             "Polski",
-                            "ਪੰਜਾਬੀ",
+                            "\u0a2a\u0a70\u0a1c\u0a3e\u0a2c\u0a40",
                             "Occitan",
                             "Norsk nynorsk",
                             "Nederlands",
-                            "Norsk bokmål",
+                            "Norsk bokm\u00e5l",
                             "Burmese",
-                            "Latviešu",
-                            "Lietuvių",
-                            "한국어",
-                            "Қазақ тілі",
+                            "Latvie\u0161u",
+                            "Lietuvi\u0173",
+                            "\ud55c\uad6d\uc5b4",
+                            "\u049a\u0430\u0437\u0430\u049b \u0442\u0456\u043b\u0456",
                             "Taqbaylit",
-                            "日本語",
+                            "\u65e5\u672c\u8a9e",
                             "Italiano",
                             "Bahasa Indonesia",
                             "Magyar",
-                            "हिन्दी",
-                            "עברית",
-                            "Français",
+                            "\u0939\u093f\u0928\u094d\u0926\u0940",
+                            "\u05e2\u05d1\u05e8\u05d9\u05ea",
+                            "Fran\u00e7ais",
                             "Suomi",
-                            "فارسی",
+                            "\u0641\u0627\u0631\u0633\u06cc",
                             "Euskara",
-                            "Español",
-                            "Ελληνικά",
+                            "Espa\u00f1ol",
+                            "\u0395\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac",
                             "Deutsch",
-                            "Česky",
-                            "Català",
-                            "Български",
-                            "العربية"
+                            "\u010cesky",
+                            "Catal\u00e0",
+                            "\u0411\u044a\u043b\u0433\u0430\u0440\u0441\u043a\u0438",
+                            "\u0627\u0644\u0639\u0631\u0628\u064a\u0629"
                         ]
                     },
                     "excalidraw.workspaceLibraryPath": {

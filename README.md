@@ -114,16 +114,17 @@ This extension exposes a set of [Language Model Tools](https://code.visualstudio
 - **create_excalidraw_diagram** — create a new `.excalidraw[.json/.svg/.png]` file (optionally seeded with scene JSON) and open it.
 - **open_excalidraw_diagram** — open an existing diagram in the editor.
 - **list_excalidraw_diagrams** — list diagrams in the workspace.
+- **save_excalidraw_diagram** — save the current drawing to disk (persist your agent's edits).
 
 ### Canvas tools
 
 These drive a **live** Excalidraw editor. Most take an optional `path`; when omitted, the currently active Excalidraw editor is used. If the target file is not open, it is opened automatically.
 
 - **Read**: `get_excalidraw_scene`, `get_excalidraw_selection`, `get_excalidraw_appstate`, `get_excalidraw_mermaid`, `export_excalidraw_image`.
-- **Author**: `add_excalidraw_elements`, `connect_excalidraw_elements`, `update_excalidraw_elements`, `delete_excalidraw_elements`, `set_excalidraw_scene`, `clear_excalidraw_canvas`.
-- **Style & layout**: `style_excalidraw_elements`, `select_excalidraw_elements`, `scroll_to_excalidraw_content`, `group_excalidraw_elements`, `ungroup_excalidraw_elements`, `frame_excalidraw_elements`, `align_excalidraw_elements`.
+- **Author**: `add_excalidraw_elements`, `connect_excalidraw_elements`, `update_excalidraw_elements`, `move_excalidraw_elements`, `delete_excalidraw_elements`, `set_excalidraw_scene`, `clear_excalidraw_canvas`.
+- **Style & layout**: `style_excalidraw_elements`, `select_excalidraw_elements`, `reorder_excalidraw_elements` (z-order), `lock_excalidraw_elements`, `duplicate_excalidraw_elements`, `flip_excalidraw_elements`, `set_excalidraw_link`, `set_excalidraw_arrowheads`, `scroll_to_excalidraw_content`, `pan_excalidraw_canvas`, `group_excalidraw_elements`, `ungroup_excalidraw_elements`, `frame_excalidraw_elements`, `align_excalidraw_elements` (align + distribute).
 - **Images & library**: `add_excalidraw_image`, `add_excalidraw_library_items`.
-- **Convenience**: `draw_from_mermaid` (convert a Mermaid definition into Excalidraw elements), `set_excalidraw_tool`.
+- **Convenience**: `draw_from_mermaid` (convert a Mermaid definition into Excalidraw elements), `set_excalidraw_tool` (switch tool/mode, e.g. `hand` for panning).
 
 > Note: the canvas tools require an Excalidraw editor to be open (the extension opens one automatically when you pass a `path`). They are not available on read-only documents (e.g. git diff views).
 

@@ -13,12 +13,20 @@ export type CommandAction =
   | "addElements"
   | "connectElements"
   | "updateElements"
+  | "moveElements"
   | "deleteElements"
   | "setScene"
   | "clearCanvas"
   | "styleElements"
   | "selectElements"
+  | "reorderElements"
+  | "lockElements"
+  | "duplicateElements"
+  | "flipElements"
+  | "setLink"
+  | "setArrowheads"
   | "scrollToContent"
+  | "panCanvas"
   | "groupElements"
   | "ungroupElements"
   | "frameElements"
@@ -26,7 +34,8 @@ export type CommandAction =
   | "addImage"
   | "addLibraryItems"
   | "drawFromMermaid"
-  | "setActiveTool";
+  | "setActiveTool"
+  | "save";
 
 export interface CommandRequest {
   type: "command";
