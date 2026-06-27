@@ -6,6 +6,7 @@ body {
 .excalidraw-wrapper {
   width: 100vw;
   height: 100vh;
+  position: relative;
 }
 
 kbd {
@@ -14,4 +15,60 @@ kbd {
 
 .excalidraw .App-menu_top .Stack_vertical .Island {
   min-width: 204px;
+}
+
+/* Code-aware diagram: selection info overlay (spike) */
+.code-intel-overlay {
+  position: absolute;
+  width: 360px;
+  max-width: 360px;
+  max-height: 320px;
+  overflow: auto;
+  z-index: 1000;
+  background: var(--vscode-editorHoverWidget-background, #252526);
+  color: var(--vscode-editorHoverWidget-foreground, #ccc);
+  border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  font-size: 12px;
+  pointer-events: auto;
+}
+.code-intel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+}
+.code-intel-symbol {
+  font-weight: 600;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-intel-diag {
+  display: flex;
+  gap: 6px;
+}
+.code-intel-err {
+  color: var(--vscode-errorForeground, #f48771);
+}
+.code-intel-warn {
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+.code-intel-goto {
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+}
+.code-intel-body {
+  margin: 0;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-editor-font-family, monospace);
 }

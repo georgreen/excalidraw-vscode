@@ -38,7 +38,9 @@ export type CommandAction =
   | "addLibraryItems"
   | "drawFromMermaid"
   | "setActiveTool"
-  | "save";
+  | "save"
+  | "setCodeLink"
+  | "getCodeLinks";
 
 export interface CommandRequest {
   type: "command";
@@ -67,6 +69,7 @@ export const READ_ONLY_ACTIONS: ReadonlyArray<CommandAction> = [
   "getMermaid",
   "exportImage",
   "panCanvas",
+  "getCodeLinks",
 ];
 
 export function isMutatingAction(action: CommandAction): boolean {

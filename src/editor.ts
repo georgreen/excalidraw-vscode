@@ -6,6 +6,12 @@ import { ExcalidrawDocument } from "./document";
 import { languageMap } from "./lang";
 import { showEditor } from "./commands";
 import { CommandAction, isMutatingAction } from "./protocol";
+import {
+  hoverMarkdown,
+  navigateToLink,
+  diagnosticsForLinks,
+  CodeLink,
+} from "./codeintel/router";
 
 function randomId(): string {
   const g = globalThis as { crypto?: { randomUUID?: () => string } };
@@ -153,6 +159,7 @@ export class ExcalidrawEditor {
   >();
   private ready = false;
   private readyResolvers: Array<() => void> = [];
+  private diagnosticsTimer: ReturnType<typeof setTimeout> | undefined;
 
   private docKey() {
     return this.document.uri.toString();
@@ -226,6 +233,10 @@ export class ExcalidrawEditor {
                 );
               }
             }
+            break;
+          }
+          case "intel": {
+            await this.handleIntel(msg);
             break;
           }
         }
@@ -323,6 +334,15 @@ export class ExcalidrawEditor {
       waiters.forEach((resolve) => resolve());
     }
 
+    // Push code diagnostics to the webview when diagnostics change anywhere
+    // (debounced). Also refresh once the webview is ready.
+    const onDidChangeDiagnostics = vscode.languages.onDidChangeDiagnostics(() =>
+      this.scheduleDiagnosticsRefresh()
+    );
+    this.whenReady()
+      .then(() => this.refreshDiagnostics())
+      .catch(() => {});
+
     return new vscode.Disposable(() => {
       onDidReceiveMessage.dispose();
       onDidChangeThemeConfiguration.dispose();
@@ -330,6 +350,10 @@ export class ExcalidrawEditor {
       onDidChangeLibraryConfiguration.dispose();
       onDidChangeLibrary.dispose();
       onDidChangeEmbedConfiguration.dispose();
+      onDidChangeDiagnostics.dispose();
+      if (this.diagnosticsTimer) {
+        clearTimeout(this.diagnosticsTimer);
+      }
       if (ExcalidrawEditor.registry.get(this.docKey()) === this) {
         ExcalidrawEditor.registry.delete(this.docKey());
       }
@@ -392,6 +416,75 @@ export class ExcalidrawEditor {
       });
       this.webview.postMessage({ type: "command", id, action, params });
     });
+  }
+
+  // --- Code intelligence (webview <-> host) ---
+
+  private async handleIntel(msg: {
+    id: string;
+    op: string;
+    params?: { codeLink?: CodeLink };
+  }) {
+    try {
+      const link = msg.params?.codeLink as CodeLink | undefined;
+      let data: unknown;
+      if (!link) {
+        throw new Error("Missing codeLink");
+      }
+      if (msg.op === "hover") {
+        data = await hoverMarkdown(link);
+      } else if (msg.op === "navigate") {
+        const opened = await navigateToLink(link);
+        if (!opened) {
+          vscode.window.showWarningMessage(
+            `Excalidraw: couldn't open code for "${link.symbol}". ` +
+              `Make sure the project folder is open and indexed by a language server.`
+          );
+        }
+        data = opened;
+      } else {
+        throw new Error(`Unknown intel op "${msg.op}"`);
+      }
+      this.webview.postMessage({
+        type: "intel-result",
+        id: msg.id,
+        ok: true,
+        data,
+      });
+    } catch (e) {
+      vscode.window.showErrorMessage(
+        `Excalidraw code intel error: ${(e as Error).message || String(e)}`
+      );
+      this.webview.postMessage({
+        type: "intel-result",
+        id: msg.id,
+        ok: false,
+        error: (e as Error).message || String(e),
+      });
+    }
+  }
+
+  private scheduleDiagnosticsRefresh() {
+    if (this.diagnosticsTimer) {
+      clearTimeout(this.diagnosticsTimer);
+    }
+    this.diagnosticsTimer = setTimeout(() => this.refreshDiagnostics(), 400);
+  }
+
+  private async refreshDiagnostics() {
+    if (!this.ready) {
+      return;
+    }
+    try {
+      const res = (await this.sendCommand("getCodeLinks")) as {
+        links?: { id: string; codeLink: CodeLink }[];
+      };
+      const links = res?.links || [];
+      const badges = links.length ? await diagnosticsForLinks(links) : {};
+      this.webview.postMessage({ type: "code-diagnostics", badges });
+    } catch {
+      // editor may have closed; ignore
+    }
   }
 
   /** Returns a live editor for the given document URI, if one is open. */

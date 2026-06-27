@@ -124,6 +124,38 @@ async function runAction(
       return sceneToMermaid(api.getSceneElements() as any[]);
     }
 
+    case "setCodeLink": {
+      const idSet = new Set<string>(params.ids || []);
+      const codeLink = params.codeLink;
+      // Also set the element `link` so Excalidraw shows its native link badge +
+      // hover tooltip, and a click fires onLinkOpen (handled as code navigation).
+      const linkLabel = codeLink?.symbol
+        ? `code: ${codeLink.symbol}`
+        : undefined;
+      const elements = api.getSceneElementsIncludingDeleted().map((el) =>
+        idSet.has(el.id)
+          ? {
+              ...el,
+              link: linkLabel ?? (el as any).link ?? null,
+              customData: { ...((el as any).customData || {}), codeLink },
+            }
+          : el
+      );
+      api.updateScene({ elements });
+      return { updated: (params.ids || []).length };
+    }
+
+    case "getCodeLinks": {
+      const links = api
+        .getSceneElements()
+        .filter((el) => (el as any).customData?.codeLink)
+        .map((el) => ({
+          id: el.id,
+          codeLink: (el as any).customData.codeLink,
+        }));
+      return { links };
+    }
+
     case "addElements": {
       const skeleton = params.elements;
       if (!Array.isArray(skeleton)) {

@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.13.0",
+    "version": "3.13.1",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -1334,6 +1334,12 @@
         ],
         "commands": [
             {
+                "command": "excalidraw.linkElementToSymbol",
+                "category": "Excalidraw",
+                "title": "Link Element to Code Symbol",
+                "icon": "$(symbol-class)"
+            },
+            {
                 "command": "excalidraw.updateTheme",
                 "category": "Excalidraw",
                 "title": "Color Theme",
@@ -1573,6 +1579,10 @@
                 },
                 {
                     "command": "excalidraw.updateTheme",
+                    "when": "activeCustomEditorId == 'editor.excalidraw'"
+                },
+                {
+                    "command": "excalidraw.linkElementToSymbol",
                     "when": "activeCustomEditorId == 'editor.excalidraw'"
                 },
                 {

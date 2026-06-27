@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.13.1
+
+Experimental: **code-aware diagrams** (Phase 0 spike). Link diagram elements to real code symbols and
+surface language intelligence by delegating to the running language servers (no custom LSP).
+
+- New command **"Excalidraw: Link element to symbol…"** — attach a `customData.codeLink` to a selected
+  element via a workspace-symbol quick-pick.
+- **Hover** a linked box to see the language server's real signature/docs, in a panel anchored next to
+  the element (follows scroll/zoom).
+- Live **error/warning badges** on boxes whose linked file has diagnostics.
+- **Navigate**: click a linked box's link badge / "Go to code" to jump to the symbol.
+- Example: `examples/code-aware-demo.excalidraw` (classes, functions, methods, interfaces pre-linked to
+  this repo). Design & plan under `docs/proposals/code-aware-diagrams/`.
+
 ## 3.13.0
 
 Lets agents browse and use the Excalidraw library.

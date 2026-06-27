@@ -18,6 +18,7 @@ import {
 } from "@excalidraw/excalidraw/types";
 import { vscode } from "./vscode.ts";
 import { handleCommand } from "./commands.ts";
+import { CodeIntelOverlay } from "./CodeIntelOverlay.tsx";
 
 function detectTheme() {
   switch (document.body.className) {
@@ -96,6 +97,7 @@ export default function App(props: {
   const { theme, setThemeConfig } = useTheme(props.theme);
   const [imageParams, setImageParams] = useState(props.imageParams);
   const [langCode, setLangCode] = useState(props.langCode);
+  const pointerCbRef = useRef<((payload: any) => void) | undefined>(undefined);
 
   useEffect(() => {
     if (!props.dirty) {
@@ -233,7 +235,22 @@ export default function App(props: {
             files
           )
         }
+        onPointerUpdate={(payload) => pointerCbRef.current?.(payload)}
         onLinkOpen={(element, event) => {
+          // Code-linked elements navigate to their symbol instead of opening a
+          // URL. Uses Excalidraw's native link affordance (badge + hover + click)
+          // so we don't intercept the canvas's own pointer/keyboard handling.
+          const codeLink = (element as any).customData?.codeLink;
+          if (codeLink) {
+            event.preventDefault();
+            vscode.postMessage({
+              type: "intel",
+              id: `nav-${Date.now()}`,
+              op: "navigate",
+              params: { codeLink },
+            });
+            return;
+          }
           vscode.postMessage({
             type: "link-open",
             url: element.link,
@@ -252,6 +269,12 @@ export default function App(props: {
             type: "library-change",
             library: serializeLibraryAsJSON(libraryItems),
           });
+        }}
+      />
+      <CodeIntelOverlay
+        api={excalidrawAPI}
+        registerPointer={(cb) => {
+          pointerCbRef.current = cb;
         }}
       />
     </div>

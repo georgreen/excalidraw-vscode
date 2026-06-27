@@ -36,7 +36,9 @@ export type CommandAction =
   | "addLibraryItems"
   | "drawFromMermaid"
   | "setActiveTool"
-  | "save";
+  | "save"
+  | "setCodeLink"
+  | "getCodeLinks";
 
 export interface CommandRequest {
   type: "command";
