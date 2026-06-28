@@ -192,3 +192,19 @@ yields nothing — opening the document activates the language server on demand.
 shipped 3.15.1. Cold-start re-validation pending a window reload.
 
 Commits this session: 3f18031 (Phase 0), 2d8c475 (P1.6 + MCP default/no-auth), 2b4a0b3 (cold-index fix).
+
+### 2026-06-28 — P1.V3 PASSED (cold) + symbol-name normalization (3.15.2)
+
+After reloading to 3.15.1, re-ran the agent tools over MCP on a **cold** TS server (no file pre-opened):
+- `get_code_hover_for_element` (resolveSymbol, and dotted `ExcalidrawEditor.sendCommand`) → full
+  signature + JSDoc. ✓ (cold-index fallback works)
+- `get_linked_diagnostics` → resolved files; reported `{doc: {errors:1, file:"src/document.ts"}}` (a live
+  in-editor error), badging the `ExcalidrawDocument` box. ✓
+- `link_excalidraw_to_symbol {ids:["intel"], symbol:"resolveSymbol"}` → linked, file resolved. ✓
+- `navigate_to_element_code` → `opened:true`. ✓
+So **P1.V3 passes** and **P1.5** (navigation) is validated.
+
+Minor bug found + fixed: linking stored `resolveSymbol()` (TS workspace symbols carry a call suffix).
+`cleanSymbolName` now strips `(…)`; exact-match filters use it too. Committed (7d158e4), shipped 3.15.2.
+
+Commit: 09e5f83 (validation log), 7d158e4 (symbol-name normalization).

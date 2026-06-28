@@ -92,7 +92,7 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
 - [ ] **P1.3** Hover overlay polish (Markdown, loading/empty states, multi-result).
 - [ ] **P1.4** Diagnostics badges as an **overlay layer** keyed by element id (no document dirtying);
   counts + message tooltips; severity colors.
-- [ ] **P1.5** Navigation via extended `link-open` path.
+- [x] **P1.5** Navigation via extended `link-open` path.
 - [x] **P1.6** Agent tools: `link_excalidraw_to_symbol`, `get_excalidraw_code_links`,
   `get_code_hover_for_element`, `navigate_to_element_code`, `get_linked_diagnostics` (LM + MCP).
 - [ ] **P1.7** Docs: README/CHANGELOG/QA changelog; version bump.
@@ -100,7 +100,7 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
 **Validation / exit criteria**
 - [ ] **P1.V1** Round-trips work across ≥2 languages (e.g. TS + Python).
 - [ ] **P1.V2** Router unit tests (stubbed `executeCommand`) green.
-- [ ] **P1.V3** Agent can: link a box, read links, get hover, jump, list linked diagnostics.
+- [x] **P1.V3** Agent can: link a box, read links, get hover, jump, list linked diagnostics.
 - [ ] **P1.V4** Build: webview (Node 22) + dual webpack; tools present in both bundles + activation
   events.
 
