@@ -9,6 +9,13 @@ import {
   placeLibraryItem,
 } from "../canvasTools";
 import { createDiagram, openDiagram, listDiagrams } from "../tools";
+import {
+  linkToSymbol,
+  listCodeLinks,
+  hoverForElement,
+  navigateElement,
+  linkedDiagnostics,
+} from "../codeintel/agentTools";
 import { ExcalidrawEditor } from "../editor";
 
 const PATH = z
@@ -526,6 +533,65 @@ export function createMcpServer(version: string): McpServer {
         ok: true,
         ...(await placeLibraryItem(path, { id, index, elements }, x, y)),
       })
+  );
+
+  // --- Code-aware tools (link diagram elements to code symbols) ---
+  server.registerTool(
+    "link_excalidraw_to_symbol",
+    {
+      description:
+        "Link diagram elements to a code symbol so they carry navigable, intelligence-bearing metadata. Provide 'symbol' (a class/function/method/interface name, e.g. 'OrderService' or 'OrderService.create') and the 'ids' to link; or set 'auto: true' to match each element to a workspace symbol by its label (optionally limited to 'ids'). The symbol is resolved via the running language servers.",
+      inputSchema: {
+        path: PATH,
+        ids: z.array(z.string()).optional(),
+        symbol: z.string().optional(),
+        auto: z.boolean().optional(),
+      },
+    },
+    async ({ path, ids, symbol, auto }) =>
+      result({ ok: true, ...(await linkToSymbol({ path, ids, symbol, auto })) })
+  );
+
+  server.registerTool(
+    "get_excalidraw_code_links",
+    {
+      description:
+        "List every element on the diagram that is linked to a code symbol, with its element id and codeLink (symbol, kind, file). This is the diagram's curated index from pictures to code.",
+      inputSchema: { path: PATH },
+    },
+    async ({ path }) => result({ ok: true, ...(await listCodeLinks(path)) })
+  );
+
+  server.registerTool(
+    "get_code_hover_for_element",
+    {
+      description:
+        "Return the language server's hover (signature + docs) for the code symbol a diagram element is linked to. 'id' is the element id (see get_excalidraw_code_links).",
+      inputSchema: { path: PATH, id: z.string() },
+    },
+    async ({ path, id }) =>
+      result({ ok: true, ...(await hoverForElement(path, id)) })
+  );
+
+  server.registerTool(
+    "navigate_to_element_code",
+    {
+      description:
+        "Open the code behind a linked diagram element in an editor (go to definition). 'id' is the element id.",
+      inputSchema: { path: PATH, id: z.string() },
+    },
+    async ({ path, id }) =>
+      result({ ok: true, ...(await navigateElement(path, id)) })
+  );
+
+  server.registerTool(
+    "get_linked_diagnostics",
+    {
+      description:
+        "Return error/warning counts (from the language servers) for the files behind the diagram's linked elements, keyed by element id. Use this to see, at a glance, which parts of the architecture currently have problems.",
+      inputSchema: { path: PATH },
+    },
+    async ({ path }) => result({ ok: true, ...(await linkedDiagnostics(path)) })
   );
 
   return server;

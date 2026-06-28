@@ -32,9 +32,7 @@ export function registerMcpProvider(context: vscode.ExtensionContext): void {
         return [];
       }
       return [
-        new McpHttpServerDefinition("Excalidraw", vscode.Uri.parse(info.url), {
-          Authorization: `Bearer ${info.token}`,
-        }),
+        new McpHttpServerDefinition("Excalidraw", vscode.Uri.parse(info.url)),
       ];
     },
   });

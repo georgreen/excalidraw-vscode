@@ -40,7 +40,8 @@ export type CommandAction =
   | "setActiveTool"
   | "save"
   | "setCodeLink"
-  | "getCodeLinks";
+  | "getCodeLinks"
+  | "getElementLabels";
 
 export interface CommandRequest {
   type: "command";
@@ -70,6 +71,7 @@ export const READ_ONLY_ACTIONS: ReadonlyArray<CommandAction> = [
   "exportImage",
   "panCanvas",
   "getCodeLinks",
+  "getElementLabels",
 ];
 
 export function isMutatingAction(action: CommandAction): boolean {

@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { showEditor } from "./commands";
 import { getActiveWorkspace } from "./utils";
 import { registerCanvasTools } from "./canvasTools";
+import { registerCodeIntelTools } from "./codeintel/agentTools";
 
 const SOURCE =
   "https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor";
@@ -238,4 +239,5 @@ export function registerTools(context: vscode.ExtensionContext) {
     vscode.lm.registerTool("list_excalidraw_diagrams", new ListDiagramsTool())
   );
   registerCanvasTools(context);
+  registerCodeIntelTools(context);
 }

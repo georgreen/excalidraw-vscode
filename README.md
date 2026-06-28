@@ -139,13 +139,13 @@ Example prompts:
 
 The extension can also expose these tools over the **Model Context Protocol (MCP)** so that *external* agents — GitHub Copilot CLI, Claude Desktop, Cursor, Zed, etc. — can control Excalidraw, not just VS Code's built-in agent.
 
-When enabled, the **desktop** extension host starts a localhost-only, token-protected MCP HTTP server on activation (it shuts down with VS Code). This feature is desktop-only; the web build keeps the in-editor tools.
+When **enabled by default**, the **desktop** extension host starts a localhost-only MCP HTTP server on activation (it shuts down with VS Code). It binds to `127.0.0.1` with **no authentication** — it is meant for a single trusted machine. This feature is desktop-only; the web build keeps the in-editor tools.
 
-1. Enable it in your settings:
+1. It is on by default. To disable it, set:
 
    ```json
    {
-     "excalidraw.mcp.enabled": true
+     "excalidraw.mcp.enabled": false
    }
    ```
 
@@ -154,26 +154,24 @@ When enabled, the **desktop** extension host starts a localhost-only, token-prot
    ```json
    {
      "url": "http://127.0.0.1:<port>/mcp",
-     "port": 12345,
-     "token": "<random token>"
+     "port": 12345
    }
    ```
 
-3. Point your MCP client at that URL using the token as a bearer header. For example, an `http` MCP server entry:
+3. Point your MCP client at that URL. For example, an `http` MCP server entry:
 
    ```json
    {
      "servers": {
        "excalidraw": {
          "type": "http",
-         "url": "http://127.0.0.1:<port>/mcp",
-         "headers": { "Authorization": "Bearer <token>" }
+         "url": "http://127.0.0.1:<port>/mcp"
        }
      }
    }
    ```
 
-The same canvas/file tools listed above are available over MCP. The server binds to `127.0.0.1` only and rejects requests without the token. Use `excalidraw.mcp.port` to pin a fixed port (default `0` = pick a free one). Progress and the active URL are logged to the **Excalidraw MCP** output channel.
+The same canvas/file tools listed above are available over MCP. The server binds to `127.0.0.1` only (no token required). Use `excalidraw.mcp.port` to pin a fixed port (default `0` = pick a free one). Progress and the active URL are logged to the **Excalidraw MCP** output channel.
 
 VS Code's own Copilot can also auto-discover this server (via the MCP server definition provider) on VS Code versions that support it — no manual configuration needed.
 

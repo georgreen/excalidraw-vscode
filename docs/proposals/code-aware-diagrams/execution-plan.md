@@ -93,7 +93,7 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
 - [ ] **P1.4** Diagnostics badges as an **overlay layer** keyed by element id (no document dirtying);
   counts + message tooltips; severity colors.
 - [ ] **P1.5** Navigation via extended `link-open` path.
-- [ ] **P1.6** Agent tools: `link_excalidraw_to_symbol`, `get_excalidraw_code_links`,
+- [x] **P1.6** Agent tools: `link_excalidraw_to_symbol`, `get_excalidraw_code_links`,
   `get_code_hover_for_element`, `navigate_to_element_code`, `get_linked_diagnostics` (LM + MCP).
 - [ ] **P1.7** Docs: README/CHANGELOG/QA changelog; version bump.
 
@@ -263,6 +263,10 @@ reordered based on demand (generation tends to deliver more value than debug ove
   **passed** in the Extension Host on this repo. With P0.V4 satisfied (host + webview `tsc` clean,
   manual E2E green), the spike has proven the full round-trip: link → resolve → hover/diagnostics →
   navigate, all by delegating to the running TS language server. Ready for Phase 1.
+- **2026-06-27** — Phase 0 work **committed** (`3f18031`) and shipped as `3.13.1`: `src/codeintel/`,
+  `webview/src/CodeIntelOverlay.tsx`, intel channel + diagnostics in `editor.ts`,
+  `setCodeLink`/`getCodeLinks` protocol, enriched `examples/code-aware-demo.excalidraw`, and the
+  `docs/proposals/code-aware-diagrams/` set. Branch `feat/agent-canvas-tools-mcp`.
 - **2026-06-27** — Added **edge / relationship convention** to `design.md` (new §11; Open questions →
   §12): arrows are A→B relationships resolvable via call/type hierarchy + references, with click→
   concrete-site (peek if many), hover summary, the diagram-linter for conceptual/transitive arrows,

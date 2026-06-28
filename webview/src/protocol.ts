@@ -38,7 +38,8 @@ export type CommandAction =
   | "setActiveTool"
   | "save"
   | "setCodeLink"
-  | "getCodeLinks";
+  | "getCodeLinks"
+  | "getElementLabels";
 
 export interface CommandRequest {
   type: "command";

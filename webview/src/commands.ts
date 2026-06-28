@@ -156,6 +156,39 @@ async function runAction(
       return { links };
     }
 
+    case "getElementLabels": {
+      const all = api.getSceneElements() as any[];
+      const textById = new Map<string, string>();
+      for (const el of all) {
+        if (el.type === "text" && typeof el.text === "string") {
+          textById.set(el.id, el.text);
+        }
+      }
+      const labelFor = (el: any): string => {
+        if (typeof el.text === "string") {
+          return el.text;
+        }
+        const bound = (el.boundElements || []).find(
+          (b: any) => b.type === "text"
+        );
+        return (bound && textById.get(bound.id)) || "";
+      };
+      // Shapes that can stand for a code symbol (skip bound labels themselves).
+      const elements = all
+        .filter(
+          (el) =>
+            el.type !== "text" || !el.containerId
+        )
+        .map((el) => ({
+          id: el.id,
+          type: el.type,
+          label: labelFor(el),
+          linked: !!el.customData?.codeLink,
+        }))
+        .filter((e) => e.label.trim() !== "");
+      return { elements };
+    }
+
     case "addElements": {
       const skeleton = params.elements;
       if (!Array.isArray(skeleton)) {

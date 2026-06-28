@@ -1,5 +1,29 @@
 # Changelog
 
+## 3.15.0
+
+MCP bridge: **on by default, no authentication** (localhost-only, trusted-machine model).
+
+- `excalidraw.mcp.enabled` now defaults to **`true`** — the desktop MCP HTTP server starts on
+  activation without extra configuration.
+- Removed the bearer-token requirement. The server binds to `127.0.0.1` only; the discovery file
+  (`~/.excalidraw-vscode/mcp.json`) and the VS Code MCP definition no longer carry a token.
+- Point any MCP client at the `url` from the discovery file with no auth header. Set
+  `excalidraw.mcp.enabled: false` to turn the bridge off.
+
+## 3.14.0
+
+Code-aware diagrams: **agent tools** (Phase 1, P1.6). Lets the VS Code AI agent and external MCP
+clients link diagram elements to code and read the resulting intelligence.
+
+- `link_excalidraw_to_symbol`: link elements to a code symbol by name, or `auto`-match by label.
+- `get_excalidraw_code_links`: list the diagram's element→symbol index.
+- `get_code_hover_for_element`: language-server signature/docs for a linked element.
+- `navigate_to_element_code`: open the code behind a linked element (go to definition).
+- `get_linked_diagnostics`: error/warning counts for the files behind linked elements.
+- All five are exposed both as VS Code Language Model tools and over the MCP bridge, reusing the same
+  host operations (delegating to the running language servers — no custom index).
+
 ## 3.13.1
 
 Experimental: **code-aware diagrams** (Phase 0 spike). Link diagram elements to real code symbols and

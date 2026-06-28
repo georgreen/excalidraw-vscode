@@ -142,3 +142,25 @@ hover/diagnostics intelligence with real signatures + docs:
   `ExcalidrawEditor.sendCommand`, `ExcalidrawEditor.setupWebview` (`src/editor.ts`)
 Color-coded (interface=purple, function=blue, method=orange). Data-only change — no rebuild; reopen
 the file (Shift+1 to zoom-to-fit, the new cluster sits below the original row).
+
+### 2026-06-27 — P1.6 agent tools (LM + MCP) implemented (3.14.0)
+
+Added 5 code-aware agent tools, registered both as VS Code Language Model tools
+(`src/codeintel/agentTools.ts` → `registerCodeIntelTools`, wired in `tools.ts`) and over the MCP
+bridge (`src/mcp/server.ts`), sharing one set of host ops:
+- `link_excalidraw_to_symbol` `{path?, ids?, symbol?, auto?}` — explicit-symbol or label-`auto` linking.
+- `get_excalidraw_code_links` `{path?}` — the element→symbol index.
+- `get_code_hover_for_element` `{path?, id}` — router.hoverMarkdown.
+- `navigate_to_element_code` `{path?, id}` — router.navigateToLink.
+- `get_linked_diagnostics` `{path?}` — router.diagnosticsForLinks.
+
+Supporting changes:
+- New read-only webview action **`getElementLabels`** (both `protocol.ts`, `webview/src/commands.ts`,
+  added to `READ_ONLY_ACTIONS`) so `auto` linking can match a shape's label to a workspace symbol.
+- Refactor: `symbolInformationToCodeLink` + `bestWorkspaceSymbol` exported from `router.ts` (now also
+  used by the link command); the codeLink `symbol` is stored dotted (`Container.member`) for methods.
+- `package.json`: 5 `languageModelTools` manifests (41 total); version → **3.14.0**.
+
+Build/validate: host `tsc` clean, webview `tsc` clean, `npm run lint` clean (after `--fix`), dual
+webpack OK (codeintel = 3 modules). Packaged + installed `pomdtr.excalidraw-editor@3.14.0`. Manual
+agent E2E (P1.V3) pending.

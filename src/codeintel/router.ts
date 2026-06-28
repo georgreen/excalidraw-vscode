@@ -28,6 +28,55 @@ function bareName(symbol: string): string {
   return i >= 0 ? symbol.slice(i + 1) : symbol;
 }
 
+/** Build a CodeLink from a workspace-symbol result. */
+export function symbolInformationToCodeLink(
+  sym: vscode.SymbolInformation
+): CodeLink {
+  const start = sym.location.range.start;
+  return {
+    kind: vscode.SymbolKind[sym.kind].toLowerCase(),
+    symbol: sym.containerName ? `${sym.containerName}.${sym.name}` : sym.name,
+    containerName: sym.containerName || undefined,
+    file: vscode.workspace.asRelativePath(sym.location.uri),
+    uri: sym.location.uri.toString(),
+    selectionStart: { line: start.line, character: start.character },
+    lastResolved: new Date().toISOString(),
+    status: "linked",
+  };
+}
+
+/**
+ * Find the best workspace symbol for a (possibly dotted) name, preferring an
+ * exact name match and, for `Container.member`, a matching container.
+ */
+export async function bestWorkspaceSymbol(
+  name: string
+): Promise<vscode.SymbolInformation | undefined> {
+  const bare = bareName(name);
+  const syms =
+    (await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+      "vscode.executeWorkspaceSymbolProvider",
+      bare
+    )) || [];
+  if (syms.length === 0) {
+    return undefined;
+  }
+  let candidates = syms.filter((s) => s.name === bare);
+  if (candidates.length === 0) {
+    candidates = syms;
+  }
+  if (name.includes(".")) {
+    const container = name.slice(0, name.lastIndexOf("."));
+    const byContainer = candidates.filter(
+      (s) => (s.containerName || "") === container
+    );
+    if (byContainer.length > 0) {
+      candidates = byContainer;
+    }
+  }
+  return candidates[0];
+}
+
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

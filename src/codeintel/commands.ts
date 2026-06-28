@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { ExcalidrawEditor } from "../editor";
-import { CodeLink } from "./router";
+import { symbolInformationToCodeLink } from "./router";
 
 const VIEW_TYPE = "editor.excalidraw";
 
@@ -75,18 +75,8 @@ function pickWorkspaceSymbol(): Promise<vscode.SymbolInformation | undefined> {
   });
 }
 
-function toCodeLink(sym: vscode.SymbolInformation): CodeLink {
-  const start = sym.location.range.start;
-  return {
-    kind: vscode.SymbolKind[sym.kind].toLowerCase(),
-    symbol: sym.name,
-    containerName: sym.containerName || undefined,
-    file: vscode.workspace.asRelativePath(sym.location.uri),
-    uri: sym.location.uri.toString(),
-    selectionStart: { line: start.line, character: start.character },
-    lastResolved: new Date().toISOString(),
-    status: "linked",
-  };
+function toCodeLink(sym: vscode.SymbolInformation) {
+  return symbolInformationToCodeLink(sym);
 }
 
 async function linkElementToSymbol() {

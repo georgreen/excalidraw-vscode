@@ -3,7 +3,6 @@ import * as http from "http";
 import * as os from "os";
 import * as path from "path";
 import * as fs from "fs/promises";
-import * as crypto from "crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMcpServer } from "./server";
 
@@ -19,10 +18,10 @@ const onDidChangeEmitter = new vscode.EventEmitter<void>();
 /** Fires when the bridge starts or stops (used by the MCP definition provider). */
 export const onDidChangeBridge = onDidChangeEmitter.event;
 
-let currentInfo: { url: string; token: string } | undefined;
+let currentInfo: { url: string } | undefined;
 
-/** The current bridge URL + token, or undefined when not running. */
-export function getBridgeInfo(): { url: string; token: string } | undefined {
+/** The current bridge URL, or undefined when not running. */
+export function getBridgeInfo(): { url: string } | undefined {
   return currentInfo;
 }
 
@@ -45,29 +44,17 @@ function readBody(req: http.IncomingMessage): Promise<unknown> {
   });
 }
 
-function isAuthorized(req: http.IncomingMessage, token: string): boolean {
-  const auth = req.headers.authorization;
-  if (typeof auth === "string" && auth === `Bearer ${token}`) {
-    return true;
-  }
-  const header = req.headers["x-mcp-token"];
-  if (typeof header === "string" && header === token) {
-    return true;
-  }
-  const url = new URL(req.url || "/", "http://127.0.0.1");
-  return url.searchParams.get("token") === token;
-}
-
 /**
  * Start the MCP bridge server if enabled. Only runs in the Node extension host.
- * Binds to localhost, requires a bearer token, and writes a discovery file so
- * external agents can connect.
+ * Binds to localhost (127.0.0.1) with no authentication — it is intended for a
+ * single trusted machine — and writes a discovery file so external agents can
+ * connect.
  */
 export async function startMcpBridge(
   context: vscode.ExtensionContext
 ): Promise<void> {
   const config = vscode.workspace.getConfiguration("excalidraw");
-  if (!config.get<boolean>("mcp.enabled", false)) {
+  if (!config.get<boolean>("mcp.enabled", true)) {
     return;
   }
   if (state) {
@@ -77,7 +64,6 @@ export async function startMcpBridge(
   const output = vscode.window.createOutputChannel("Excalidraw MCP");
   const version: string =
     (context.extension.packageJSON as { version?: string }).version || "0.0.0";
-  const token = crypto.randomBytes(24).toString("hex");
   const preferredPort = config.get<number>("mcp.port", 0) || 0;
 
   const httpServer = http.createServer(async (req, res) => {
@@ -89,11 +75,6 @@ export async function startMcpBridge(
     if (req.method !== "POST") {
       res.writeHead(405);
       res.end();
-      return;
-    }
-    if (!isAuthorized(req, token)) {
-      res.writeHead(401, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: "unauthorized" }));
       return;
     }
 
@@ -147,7 +128,6 @@ export async function startMcpBridge(
       {
         url,
         port,
-        token,
         pid: process.pid,
         workspace: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
         startedAt: new Date().toISOString(),
@@ -159,13 +139,13 @@ export async function startMcpBridge(
   );
 
   state = { httpServer, discoveryFile, output };
-  currentInfo = { url, token };
+  currentInfo = { url };
   onDidChangeEmitter.fire();
   context.subscriptions.push({ dispose: () => void stopMcpBridge() });
 
   output.appendLine(`Excalidraw MCP bridge listening on ${url}`);
   output.appendLine(`Discovery file: ${discoveryFile}`);
-  output.appendLine("Token is stored in the discovery file (localhost only).");
+  output.appendLine("Localhost-only, no authentication (trusted machine).");
 }
 
 export async function stopMcpBridge(): Promise<void> {

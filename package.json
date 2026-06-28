@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.13.1",
+    "version": "3.15.0",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -1330,6 +1330,155 @@
                         }
                     }
                 }
+            },
+            {
+                "name": "link_excalidraw_to_symbol",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "code"
+                ],
+                "toolReferenceName": "linkExcalidrawToSymbol",
+                "displayName": "Link Excalidraw To Symbol",
+                "userDescription": "Link diagram elements to a code symbol.",
+                "modelDescription": "Link diagram elements to a code symbol so they become navigable and carry language intelligence. Provide 'symbol' (a class/function/method/interface name, e.g. 'OrderService' or 'OrderService.create') together with the 'ids' to link; or set 'auto: true' to link elements by matching their label to a workspace symbol (optionally limited to 'ids'). The symbol is resolved via the running language servers (no custom index). Returns the linked ids and resolved file. Requires the project folder to be open and indexed.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(link)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "ids": {
+                            "type": "array",
+                            "description": "Element ids to link. Required unless 'auto' is true.",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "symbol": {
+                            "type": "string",
+                            "description": "Symbol name to link to, e.g. 'OrderService' or 'OrderService.create'."
+                        },
+                        "auto": {
+                            "type": "boolean",
+                            "description": "If true, match each element to a workspace symbol by its label instead of using 'symbol'."
+                        }
+                    }
+                }
+            },
+            {
+                "name": "get_excalidraw_code_links",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "code"
+                ],
+                "toolReferenceName": "getExcalidrawCodeLinks",
+                "displayName": "Get Excalidraw Code Links",
+                "userDescription": "List elements linked to code symbols.",
+                "modelDescription": "List every element on the diagram that is linked to a code symbol, with its element id and codeLink (symbol, kind, file). This is the diagram's curated index from pictures to code; read it to discover what the diagram asserts about the codebase before hovering, navigating, or checking diagnostics. Returns JSON.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(references)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        }
+                    }
+                }
+            },
+            {
+                "name": "get_code_hover_for_element",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "code"
+                ],
+                "toolReferenceName": "getCodeHoverForElement",
+                "displayName": "Get Code Hover For Element",
+                "userDescription": "Get the signature/docs for a linked element.",
+                "modelDescription": "Return the language server's hover (type signature and documentation) for the code symbol that a diagram element is linked to. 'id' is the element id from get_excalidraw_code_links. Use this to read the real, current API behind a box without opening the file. Returns JSON with a Markdown 'hover'.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(info)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "id": {
+                            "type": "string",
+                            "description": "Element id (from get_excalidraw_code_links)."
+                        }
+                    },
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "name": "navigate_to_element_code",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "code"
+                ],
+                "toolReferenceName": "navigateToElementCode",
+                "displayName": "Navigate To Element Code",
+                "userDescription": "Open the code behind a linked element.",
+                "modelDescription": "Open the code behind a linked diagram element in an editor (go to definition), revealing the symbol. 'id' is the element id from get_excalidraw_code_links. Returns whether a location was opened.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(go-to-file)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "id": {
+                            "type": "string",
+                            "description": "Element id (from get_excalidraw_code_links)."
+                        }
+                    },
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "name": "get_linked_diagnostics",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "code"
+                ],
+                "toolReferenceName": "getLinkedDiagnostics",
+                "displayName": "Get Linked Diagnostics",
+                "userDescription": "Get errors/warnings for linked code.",
+                "modelDescription": "Return error/warning counts (from the language servers) for the files behind the diagram's linked elements, keyed by element id. Use this to see which parts of the diagrammed architecture currently have problems. Returns JSON.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(warning)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        }
+                    }
+                }
             }
         ],
         "commands": [
@@ -1551,13 +1700,13 @@
                     },
                     "excalidraw.mcp.enabled": {
                         "type": "boolean",
-                        "default": false,
-                        "markdownDescription": "Enable the Excalidraw MCP bridge so external agents (e.g. Copilot CLI) can control diagrams. Runs a localhost-only, token-protected HTTP MCP server in the desktop (Node) extension host. Not available in web (vscode.dev)."
+                        "default": true,
+                        "markdownDescription": "Enable the Excalidraw MCP bridge so external agents (e.g. Copilot CLI) can control diagrams. Runs a localhost-only HTTP MCP server in the desktop (Node) extension host. Bound to 127.0.0.1 with no authentication (intended for a single trusted machine). Not available in web (vscode.dev)."
                     },
                     "excalidraw.mcp.port": {
                         "type": "number",
                         "default": 0,
-                        "markdownDescription": "Preferred port for the MCP bridge server. Use `0` to pick a free port automatically (recommended). The actual port and access token are written to a discovery file (`~/.excalidraw-vscode/mcp.json`)."
+                        "markdownDescription": "Preferred port for the MCP bridge server. Use `0` to pick a free port automatically (recommended). The actual URL and port are written to a discovery file (`~/.excalidraw-vscode/mcp.json`)."
                     }
                 }
             }
