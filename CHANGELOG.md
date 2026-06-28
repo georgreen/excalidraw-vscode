@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.15.2
+
+Code-aware: cleaner symbol names when linking.
+
+- Strip the call suffix (`()` / `(params)`) that TypeScript's workspace symbols report for
+  functions/methods, so `link_excalidraw_to_symbol` stores `resolveSymbol` (not `resolveSymbol()`) and
+  exact-name matching during resolution is more reliable.
+
 ## 3.15.1
 
 Code-aware: more robust symbol resolution for agents.

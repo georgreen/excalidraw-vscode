@@ -28,14 +28,25 @@ function bareName(symbol: string): string {
   return i >= 0 ? symbol.slice(i + 1) : symbol;
 }
 
+/**
+ * Normalize a symbol provider's name to a bare identifier. TypeScript's
+ * workspace symbols report functions/methods with a call suffix
+ * (e.g. `resolveSymbol()` or `send(a, b)`); strip from the first `(`.
+ */
+function cleanSymbolName(name: string): string {
+  const i = name.indexOf("(");
+  return (i >= 0 ? name.slice(0, i) : name).trim();
+}
+
 /** Build a CodeLink from a workspace-symbol result. */
 export function symbolInformationToCodeLink(
   sym: vscode.SymbolInformation
 ): CodeLink {
   const start = sym.location.range.start;
+  const clean = cleanSymbolName(sym.name);
   return {
     kind: vscode.SymbolKind[sym.kind].toLowerCase(),
-    symbol: sym.containerName ? `${sym.containerName}.${sym.name}` : sym.name,
+    symbol: sym.containerName ? `${sym.containerName}.${clean}` : clean,
     containerName: sym.containerName || undefined,
     file: vscode.workspace.asRelativePath(sym.location.uri),
     uri: sym.location.uri.toString(),
@@ -61,7 +72,7 @@ export async function bestWorkspaceSymbol(
   if (syms.length === 0) {
     return undefined;
   }
-  let candidates = syms.filter((s) => s.name === bare);
+  let candidates = syms.filter((s) => cleanSymbolName(s.name) === bare);
   if (candidates.length === 0) {
     candidates = syms;
   }
@@ -212,7 +223,7 @@ export async function resolveSymbol(
       : undefined;
   }
 
-  let candidates = syms.filter((s) => s.name === name);
+  let candidates = syms.filter((s) => cleanSymbolName(s.name) === name);
   if (candidates.length === 0) {
     candidates = syms;
   }
