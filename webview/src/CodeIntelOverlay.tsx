@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { vscode } from "./vscode.ts";
 
@@ -13,7 +13,12 @@ interface CodeInfo {
   anchor: { left: number; top: number };
 }
 
-type DiagBadge = { errors: number; warnings: number; file: string };
+type DiagBadge = {
+  errors: number;
+  warnings: number;
+  file: string;
+  messages?: string[];
+};
 
 // Pending intel requests (webview -> host -> webview), correlated by id.
 const intelPending = new Map<string, (data: any) => void>();
@@ -37,13 +42,36 @@ function computeAnchor(el: any, appState: any): { left: number; top: number } {
   return { left, top };
 }
 
-/** Tidy LSP hover Markdown for plain rendering: drop code-fence markers, collapse blank runs. */
-function cleanHoverMd(md: string): string {
-  return md
-    .replace(/```[a-zA-Z-]*\n?/g, "")
-    .replace(/```/g, "")
+/** Top-right corner of an element, in on-screen coords (for a diagnostic badge). */
+function computeBadgeAnchor(
+  el: any,
+  appState: any
+): { left: number; top: number } {
+  const zoom = appState?.zoom?.value ?? 1;
+  const sx = appState?.scrollX ?? 0;
+  const sy = appState?.scrollY ?? 0;
+  return {
+    left: (el.x + el.width + sx) * zoom - 14,
+    top: (el.y + sy) * zoom - 8,
+  };
+}
+
+/** Split LSP hover Markdown into a signature (first code block) and the rest. */
+function splitHover(md: string): { sig: string; doc: string } {
+  const cleaned = md
+    .replace(/```[a-zA-Z-]*\n?/g, "\u0000")
+    .replace(/```/g, "\u0000");
+  const parts = cleaned.split("\u0000").map((s) => s.trim());
+  // The first non-empty fenced section is the signature; the rest is docs.
+  const nonEmpty = parts.filter((p) => p !== "");
+  const sig = nonEmpty[0] || "";
+  const doc = nonEmpty
+    .slice(1)
+    .join("\n\n")
     .replace(/\n{3,}/g, "\n\n")
+    .replace(/^-{3,}$/gm, "")
     .trim();
+  return { sig, doc };
 }
 
 function intel(op: string, params: any): Promise<any> {
@@ -79,12 +107,17 @@ export function CodeIntelOverlay(props: {
   const { api, registerPointer } = props;
   const [info, setInfo] = useState<CodeInfo | undefined>();
   const [badges, setBadges] = useState<Record<string, DiagBadge>>({});
+  // Bumped on canvas change so the diagnostic badge layer re-anchors.
+  const [, setTick] = useState(0);
 
   const hoveredId = useRef<string | null>(null);
   const selectedId = useRef<string | null>(null);
   const shownId = useRef<string | null>(null);
   const apiRef = useRef(api);
   apiRef.current = api;
+  const badgesRef = useRef(badges);
+  badgesRef.current = badges;
+  const lastBadgeTick = useRef(0);
 
   // Listen for intel results and diagnostics pushes from the host.
   useEffect(() => {
@@ -141,7 +174,7 @@ export function CodeIntelOverlay(props: {
           ? {
               ...cur,
               loading: false,
-              hoverMd: md ? cleanHoverMd(md) : "_No hover info._",
+              hoverMd: md || "",
             }
           : cur
       );
@@ -222,42 +255,97 @@ export function CodeIntelOverlay(props: {
           );
         }
       }
+      // Re-anchor the diagnostic badge layer (throttled) when badges exist.
+      if (Object.keys(badgesRef.current).length > 0) {
+        const now = Date.now();
+        if (now - lastBadgeTick.current > 50) {
+          lastBadgeTick.current = now;
+          setTick((t) => t + 1);
+        }
+      }
     });
     return unsub;
   }, [api]);
 
-  if (!info) {
-    return null;
+  // Persistent diagnostic badge layer: a marker on every linked element whose
+  // file currently has errors/warnings (positioned at the element's corner).
+  const a = apiRef.current;
+  let badgeLayer: ReactNode = null;
+  const badgeIds = Object.keys(badges);
+  if (a && badgeIds.length > 0) {
+    const appState: any = a.getAppState();
+    const els = a.getSceneElements() as any[];
+    const markers = badgeIds
+      .map((id) => {
+        const el = els.find((e) => e.id === id);
+        if (!el) {
+          return null;
+        }
+        const b = badges[id];
+        const pos = computeBadgeAnchor(el, appState);
+        const title = (b.messages && b.messages.length ? b.messages : [b.file])
+          .join("\n");
+        return (
+          <div
+            key={id}
+            className={`code-diag-badge ${
+              b.errors > 0 ? "code-diag-error" : "code-diag-warning"
+            }`}
+            style={{ left: pos.left, top: pos.top }}
+            title={title}
+          >
+            {b.errors > 0 ? `⛔ ${b.errors}` : `⚠ ${b.warnings}`}
+          </div>
+        );
+      })
+      .filter(Boolean);
+    badgeLayer = <div className="code-diag-layer">{markers}</div>;
   }
-  const badge = badges[info.elementId];
+
+  const badge = info ? badges[info.elementId] : undefined;
+  const hover = info && !info.loading ? splitHover(info.hoverMd) : undefined;
 
   return (
-    <div
-      className="code-intel-overlay"
-      style={{ left: info.anchor.left, top: info.anchor.top }}
-    >
-      <div className="code-intel-header">
-        <span className="code-intel-symbol">{info.symbol}</span>
-        {badge && (
-          <span className="code-intel-diag">
-            {badge.errors > 0 && (
-              <span className="code-intel-err">⛔ {badge.errors}</span>
-            )}
-            {badge.warnings > 0 && (
-              <span className="code-intel-warn">⚠ {badge.warnings}</span>
-            )}
-          </span>
-        )}
-        <button
-          className="code-intel-goto"
-          onClick={() => intel("navigate", { codeLink: info.codeLink })}
+    <>
+      {badgeLayer}
+      {info && (
+        <div
+          className="code-intel-overlay"
+          style={{ left: info.anchor.left, top: info.anchor.top }}
         >
-          Go to code
-        </button>
-      </div>
-      <pre className="code-intel-body">
-        {info.loading ? "Loading…" : info.hoverMd}
-      </pre>
-    </div>
+          <div className="code-intel-header">
+            <span className="code-intel-symbol">{info.symbol}</span>
+            {badge && (
+              <span className="code-intel-diag">
+                {badge.errors > 0 && (
+                  <span className="code-intel-err">⛔ {badge.errors}</span>
+                )}
+                {badge.warnings > 0 && (
+                  <span className="code-intel-warn">⚠ {badge.warnings}</span>
+                )}
+              </span>
+            )}
+            <button
+              className="code-intel-goto"
+              onClick={() => intel("navigate", { codeLink: info.codeLink })}
+            >
+              Go to code
+            </button>
+          </div>
+          <div className="code-intel-body">
+            {info.loading ? (
+              <span className="code-intel-muted">Loading…</span>
+            ) : hover && (hover.sig || hover.doc) ? (
+              <>
+                {hover.sig && <pre className="code-intel-sig">{hover.sig}</pre>}
+                {hover.doc && <div className="code-intel-doc">{hover.doc}</div>}
+              </>
+            ) : (
+              <span className="code-intel-muted">No hover info.</span>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

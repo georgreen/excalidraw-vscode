@@ -355,12 +355,26 @@ export interface DiagnosticBadge {
   errors: number;
   warnings: number;
   file: string;
+  messages: string[];
+}
+
+function severityLabel(sev: vscode.DiagnosticSeverity): string {
+  switch (sev) {
+    case vscode.DiagnosticSeverity.Error:
+      return "error";
+    case vscode.DiagnosticSeverity.Warning:
+      return "warning";
+    case vscode.DiagnosticSeverity.Information:
+      return "info";
+    default:
+      return "hint";
+  }
 }
 
 /**
- * Compute error/warning counts for the files behind a set of links
- * (LSP `textDocument/publishDiagnostics`, surfaced via `getDiagnostics`).
- * Spike granularity: per-file, not per-symbol-range.
+ * Compute error/warning counts (and a few sample messages, for tooltips) for the
+ * files behind a set of links (LSP `textDocument/publishDiagnostics`, surfaced
+ * via `getDiagnostics`). Spike granularity: per-file, not per-symbol-range.
  */
 export async function diagnosticsForLinks(
   links: { id: string; codeLink: CodeLink }[]
@@ -375,19 +389,39 @@ export async function diagnosticsForLinks(
     const key = r.uri.toString();
     let badge = cache.get(key);
     if (badge === undefined) {
-      const diags = vscode.languages.getDiagnostics(r.uri);
+      const diags = vscode.languages
+        .getDiagnostics(r.uri)
+        .filter(
+          (d) =>
+            d.severity === vscode.DiagnosticSeverity.Error ||
+            d.severity === vscode.DiagnosticSeverity.Warning
+        )
+        .sort((a, b) => a.severity - b.severity);
       let errors = 0;
       let warnings = 0;
       for (const d of diags) {
         if (d.severity === vscode.DiagnosticSeverity.Error) {
           errors++;
-        } else if (d.severity === vscode.DiagnosticSeverity.Warning) {
+        } else {
           warnings++;
         }
       }
+      const messages = diags
+        .slice(0, 3)
+        .map(
+          (d) =>
+            `${severityLabel(d.severity)} (line ${d.range.start.line + 1}): ${
+              d.message
+            }`
+        );
       badge =
         errors || warnings
-          ? { errors, warnings, file: vscode.workspace.asRelativePath(r.uri) }
+          ? {
+              errors,
+              warnings,
+              file: vscode.workspace.asRelativePath(r.uri),
+              messages,
+            }
           : null;
       cache.set(key, badge);
     }

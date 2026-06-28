@@ -208,3 +208,14 @@ Minor bug found + fixed: linking stored `resolveSymbol()` (TS workspace symbols 
 `cleanSymbolName` now strips `(…)`; exact-match filters use it too. Committed (7d158e4), shipped 3.15.2.
 
 Commit: 09e5f83 (validation log), 7d158e4 (symbol-name normalization).
+
+### 2026-06-28 — P1.3 + P1.4 diagnostics/hover polish (3.16.0)
+
+- **P1.4**: diagnostics are now a **persistent overlay layer** keyed by element id — a colored badge
+  on every linked element whose file has problems (red=error, amber=warning), anchored to the
+  element's corner and re-anchored on scroll/zoom/move (throttled). `diagnosticsForLinks` now also
+  returns the top diagnostic **messages** (with severity + line), shown as the badge tooltip.
+- **P1.3**: hover panel splits the signature (code block) from the prose docs (`splitHover`), with
+  explicit loading / "No hover info" states.
+Host + webview tsc clean; webview rebuilt (Node 22, slow/EINVAL-flaky on the SSD — retried) + dual
+webpack. Shipped 3.16.0. Tasks marked done (code-complete); **visual confirmation pending** a reload.

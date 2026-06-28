@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.16.0
+
+Code-aware: diagnostics and hover polish.
+
+- **Persistent diagnostic badges**: a colored marker now sits on every linked element whose file has
+  errors/warnings (not just the focused one), anchored to the element and following scroll/zoom. Red
+  for errors, amber for warnings, with the actual diagnostic messages as a tooltip.
+- **Hover panel**: the signature is rendered as a distinct code block, separate from the prose docs,
+  with clearer loading / "no hover info" states.
+
 ## 3.15.2
 
 Code-aware: cleaner symbol names when linking.

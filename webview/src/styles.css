@@ -72,3 +72,49 @@ kbd {
   word-break: break-word;
   font-family: var(--vscode-editor-font-family, monospace);
 }
+.code-intel-sig {
+  margin: 0 0 6px 0;
+  padding: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-editor-font-family, monospace);
+  color: var(--vscode-symbolIcon-functionForeground, #c5c5ff);
+}
+.code-intel-doc {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-font-family, sans-serif);
+  opacity: 0.92;
+}
+.code-intel-muted {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* Persistent diagnostic badge layer over the canvas */
+.code-diag-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+}
+.code-diag-badge {
+  position: absolute;
+  pointer-events: auto;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 8px;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  cursor: default;
+  white-space: nowrap;
+}
+.code-diag-error {
+  background: var(--vscode-errorForeground, #f14c4c);
+}
+.code-diag-warning {
+  background: var(--vscode-editorWarning-foreground, #cca700);
+  color: #1e1e1e;
+}
