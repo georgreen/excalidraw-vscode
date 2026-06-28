@@ -108,7 +108,7 @@ kbd {
   border-radius: 8px;
   color: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  cursor: default;
+  cursor: pointer;
   white-space: nowrap;
 }
 .code-diag-error {

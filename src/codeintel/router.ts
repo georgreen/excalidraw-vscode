@@ -358,6 +358,38 @@ export interface DiagnosticBadge {
   messages: string[];
 }
 
+/**
+ * Open the file behind a link at its first problem (errors before warnings) and
+ * select that diagnostic's range. Used when an agent/user clicks a diagnostic
+ * badge. Falls back to opening the file when no diagnostics remain.
+ */
+export async function navigateToDiagnostic(link: CodeLink): Promise<boolean> {
+  let uri: vscode.Uri | undefined;
+  const r = await resolveSymbol(link);
+  if (r) {
+    uri = r.uri;
+  } else if (link.file) {
+    uri = await fileToUri(link.file);
+  }
+  if (!uri) {
+    return false;
+  }
+  const diags = vscode.languages
+    .getDiagnostics(uri)
+    .filter(
+      (d) =>
+        d.severity === vscode.DiagnosticSeverity.Error ||
+        d.severity === vscode.DiagnosticSeverity.Warning
+    )
+    .sort((a, b) => a.severity - b.severity);
+  const doc = await vscode.workspace.openTextDocument(uri);
+  const editor = await vscode.window.showTextDocument(doc, { preview: true });
+  const range = diags[0]?.range ?? new vscode.Range(0, 0, 0, 0);
+  editor.selection = new vscode.Selection(range.start, range.end);
+  editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+  return true;
+}
+
 function severityLabel(sev: vscode.DiagnosticSeverity): string {
   switch (sev) {
     case vscode.DiagnosticSeverity.Error:

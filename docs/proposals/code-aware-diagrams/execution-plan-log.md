@@ -219,3 +219,11 @@ Commit: 09e5f83 (validation log), 7d158e4 (symbol-name normalization).
   explicit loading / "No hover info" states.
 Host + webview tsc clean; webview rebuilt (Node 22, slow/EINVAL-flaky on the SSD — retried) + dual
 webpack. Shipped 3.16.0. Tasks marked done (code-complete); **visual confirmation pending** a reload.
+
+### 2026-06-28 — Clickable diagnostic badges (3.16.1)
+
+Q: what should clicking a diagnostic badge do? Decision: **jump to the problem**. New router op
+`navigateToDiagnostic(link)` opens the linked file at its first diagnostic (errors before warnings)
+and selects that range; host `handleIntel` op `navigateDiagnostic`; the webview badge `onClick` looks
+up the element's codeLink and posts it (tooltip now hints "click to open the problem in code"). Falls
+back to opening the file when no diagnostics remain. Host + webview tsc + lint clean; shipped 3.16.1.

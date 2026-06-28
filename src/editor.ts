@@ -9,6 +9,7 @@ import { CommandAction, isMutatingAction } from "./protocol";
 import {
   hoverMarkdown,
   navigateToLink,
+  navigateToDiagnostic,
   diagnosticsForLinks,
   CodeLink,
 } from "./codeintel/router";
@@ -439,6 +440,14 @@ export class ExcalidrawEditor {
           vscode.window.showWarningMessage(
             `Excalidraw: couldn't open code for "${link.symbol}". ` +
               `Make sure the project folder is open and indexed by a language server.`
+          );
+        }
+        data = opened;
+      } else if (msg.op === "navigateDiagnostic") {
+        const opened = await navigateToDiagnostic(link);
+        if (!opened) {
+          vscode.window.showWarningMessage(
+            `Excalidraw: couldn't open the file for "${link.symbol}".`
           );
         }
         data = opened;

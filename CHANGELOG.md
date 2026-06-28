@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.16.1
+
+Code-aware: diagnostic badges are now clickable.
+
+- Clicking a diagnostic badge opens the linked file at its **first problem** (errors before warnings)
+  and selects that diagnostic's range — a one-click jump from a diagram box to the actual error.
+
 ## 3.16.0
 
 Code-aware: diagnostics and hover polish.

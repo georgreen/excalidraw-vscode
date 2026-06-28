@@ -292,7 +292,13 @@ export function CodeIntelOverlay(props: {
               b.errors > 0 ? "code-diag-error" : "code-diag-warning"
             }`}
             style={{ left: pos.left, top: pos.top }}
-            title={title}
+            title={`${title}\n\n(click to open the problem in code)`}
+            onClick={() => {
+              const codeLink = el?.customData?.codeLink;
+              if (codeLink) {
+                intel("navigateDiagnostic", { codeLink });
+              }
+            }}
           >
             {b.errors > 0 ? `⛔ ${b.errors}` : `⚠ ${b.warnings}`}
           </div>
