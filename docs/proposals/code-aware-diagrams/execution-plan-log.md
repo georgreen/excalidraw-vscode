@@ -164,3 +164,31 @@ Supporting changes:
 Build/validate: host `tsc` clean, webview `tsc` clean, `npm run lint` clean (after `--fix`), dual
 webpack OK (codeintel = 3 modules). Packaged + installed `pomdtr.excalidraw-editor@3.14.0`. Manual
 agent E2E (P1.V3) pending.
+
+### 2026-06-28 — P1.6 validated over the live MCP bridge (3.15.0)
+
+Exercised the agent tools directly against the running bridge (`http://127.0.0.1:39127/mcp`, no auth)
+via JSON-RPC `tools/call`:
+- **MCP transport / no-auth**: discovery file holds url/port only (no token); `/health` → `ok`;
+  `tools/list` returns **41 tools**, including all 5 code-aware tools. ✓
+- `get_excalidraw_code_links` → returned the live demo's **13 links** (classes/functions/methods/
+  interfaces). ✓
+- `get_linked_diagnostics` → `{files:0, badges:{}}` (no current errors). ✓ (valid empty result)
+- `get_code_hover_for_element` (rich_sc / rich_cl / intel) → `hover: null`. ✗ — root cause: the TS
+  **language server was dormant** in the reloaded window (only webview-only tools resolve without it;
+  hover/diagnostics/navigate all need `executeWorkspaceSymbolProvider`). Same "wake the server"
+  condition as Phase 0 — opening a `.ts` file in that window should restore hover. Re-confirm pending.
+
+Net: registration, transport, read, and diagnostics paths are validated end-to-end for agents; hover
+needs an active language server. P1.V3 partially validated.
+
+### 2026-06-28 — Robustness: cold-index symbol resolution (3.15.1)
+
+MCP E2E (above) showed hover/diagnostics return empty when the TS server is dormant (workspace symbol
+index cold). Confirmed by navigating first (opens the file → wakes the server) then hovering, which
+returned the full `ExcalidrawEditor.sendCommand` signature + JSDoc. Fix: `resolveSymbol` now falls
+back to `executeDocumentSymbolProvider` on the link's `file` when `executeWorkspaceSymbolProvider`
+yields nothing — opening the document activates the language server on demand. Committed (2b4a0b3),
+shipped 3.15.1. Cold-start re-validation pending a window reload.
+
+Commits this session: 3f18031 (Phase 0), 2d8c475 (P1.6 + MCP default/no-auth), 2b4a0b3 (cold-index fix).
