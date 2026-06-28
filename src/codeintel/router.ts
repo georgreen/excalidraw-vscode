@@ -112,9 +112,75 @@ async function refineToIdentifier(
 }
 
 /**
+ * Resolve a symbol within its file via the document symbol provider. Opening the
+ * document activates the language server for that file even when the workspace
+ * symbol index is cold, so this is the reliable fallback when
+ * `executeWorkspaceSymbolProvider` returns nothing. Handles dotted
+ * `Container.member` names by scoping the search to the container's children.
+ */
+async function resolveViaDocumentSymbols(
+  file: string,
+  symbol: string
+): Promise<Resolved | undefined> {
+  const uri = await fileToUri(file);
+  if (!uri) {
+    return undefined;
+  }
+  try {
+    await vscode.workspace.openTextDocument(uri);
+  } catch {
+    return undefined;
+  }
+  const bare = bareName(symbol);
+  const container = symbol.includes(".")
+    ? symbol.slice(0, symbol.lastIndexOf("."))
+    : undefined;
+  // The server may need a moment to index a freshly opened document.
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const symbols =
+      (await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+        "vscode.executeDocumentSymbolProvider",
+        uri
+      )) || [];
+    if (symbols.length > 0) {
+      let scope = symbols;
+      if (container) {
+        const parent = findDocumentSymbol(symbols, container);
+        if (parent?.children?.length) {
+          scope = parent.children;
+        }
+      }
+      const found =
+        findDocumentSymbol(scope, bare) || findDocumentSymbol(symbols, bare);
+      return found ? { uri, position: found.selectionRange.start } : undefined;
+    }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return undefined;
+}
+
+function findDocumentSymbol(
+  symbols: vscode.DocumentSymbol[],
+  name: string
+): vscode.DocumentSymbol | undefined {
+  for (const s of symbols) {
+    if (s.name === name) {
+      return s;
+    }
+    const child = findDocumentSymbol(s.children || [], name);
+    if (child) {
+      return child;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Resolve a CodeLink to a concrete (uri, position) by delegating to the running
- * language servers via the workspace symbol provider (LSP `workspace/symbol`).
- * Falls back to the cached uri/position when present.
+ * language servers. Tries the cached position, then the workspace symbol
+ * provider (LSP `workspace/symbol`); if that is empty (e.g. the language server
+ * has not indexed yet) it falls back to opening the linked `file` and querying
+ * its document symbols, which activates the server on demand.
  */
 export async function resolveSymbol(
   link: CodeLink
@@ -140,7 +206,10 @@ export async function resolveSymbol(
       name
     )) || [];
   if (syms.length === 0) {
-    return undefined;
+    // Workspace index is cold or the symbol is unknown there: try the file.
+    return link.file
+      ? resolveViaDocumentSymbols(link.file, link.symbol)
+      : undefined;
   }
 
   let candidates = syms.filter((s) => s.name === name);

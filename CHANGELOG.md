@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.15.1
+
+Code-aware: more robust symbol resolution for agents.
+
+- `resolveSymbol` now falls back to the **document symbol provider** on a link's `file` when the
+  workspace symbol index is cold — opening the document activates the language server on demand. This
+  fixes empty hover/diagnostics for `get_code_hover_for_element` / `get_linked_diagnostics` when no
+  source file from the project is open yet (previously you had to open a file first).
+
 ## 3.15.0
 
 MCP bridge: **on by default, no authentication** (localhost-only, trusted-machine model).
