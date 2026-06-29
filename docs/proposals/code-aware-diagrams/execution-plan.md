@@ -127,7 +127,7 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
 **Goal:** derive diagrams from code and grow them on demand.
 
 **Tasks**
-- [ ] **P2.1** **"Visualize as Excalidraw"** from a symbol: `prepareTypeHierarchy` (inheritance) and
+- [x] **P2.1** **"Visualize as Excalidraw"** from a symbol: `prepareTypeHierarchy` (inheritance) and
   `prepareCallHierarchy` (calls) → skeletons → `convertToExcalidrawElements` → `updateScene`,
   pre-linked. Depth limit + node cap.
 - [ ] **P2.2** `generate_diagram_from_symbol` and `expand_element_relations` agent tools.
