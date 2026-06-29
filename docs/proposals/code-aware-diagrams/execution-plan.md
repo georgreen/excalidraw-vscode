@@ -101,7 +101,7 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
 - [ ] **P1.V1** Round-trips work across ≥2 languages (e.g. TS + Python).
 - [ ] **P1.V2** Router unit tests (stubbed `executeCommand`) green.
 - [x] **P1.V3** Agent can: link a box, read links, get hover, jump, list linked diagnostics.
-- [ ] **P1.V4** Build: webview (Node 22) + dual webpack; tools present in both bundles + activation
+- [x] **P1.V4** Build: webview (Node 22) + dual webpack; tools present in both bundles + activation
   events.
 
 **Notes (append-only):**

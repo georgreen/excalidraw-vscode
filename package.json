@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.17.0",
+    "version": "3.17.1",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -61,6 +61,11 @@
         "onLanguageModelTool:add_excalidraw_library_items",
         "onLanguageModelTool:get_excalidraw_library",
         "onLanguageModelTool:place_excalidraw_library_item",
+        "onLanguageModelTool:link_excalidraw_to_symbol",
+        "onLanguageModelTool:get_excalidraw_code_links",
+        "onLanguageModelTool:get_code_hover_for_element",
+        "onLanguageModelTool:navigate_to_element_code",
+        "onLanguageModelTool:get_linked_diagnostics",
         "onStartupFinished"
     ],
     "repository": {

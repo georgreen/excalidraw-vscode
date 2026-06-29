@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.17.1
+
+Fix: add `onLanguageModelTool` activation events for the five code-aware tools
+(`link_excalidraw_to_symbol`, `get_excalidraw_code_links`, `get_code_hover_for_element`,
+`navigate_to_element_code`, `get_linked_diagnostics`), so invoking them activates the extension.
+
 ## 3.17.0
 
 Code-aware: auto-linking, unlinking, and schema validation (Phase 1 P1.1/P1.2).

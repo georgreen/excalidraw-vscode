@@ -242,3 +242,14 @@ back to opening the file when no diagnostics remain. Host + webview tsc + lint c
 Host + webview tsc + lint clean; built/installed 3.17.0. Phase 1 task list now complete (P1.1–P1.7);
 remaining Phase 1 items are validations P1.V1 (multi-language), P1.V2 (router unit tests), P1.V4
 (bundle/activation check).
+
+### 2026-06-29 — P1.V4 PASSED (+ activation-events fix, 3.17.1)
+
+Verified: all 5 code-aware LM tools present in the **web** bundle and (with the 5 MCP tools +
+`navigateToDiagnostic`) in the **node** bundle; `autoLinkElements` command bundled. **Bug found**: the
+5 code-aware LM tools had no `onLanguageModelTool:*` activation events (every canvas tool does), so
+invoking one might not activate the extension. Added them (3.17.1). P1.V4 done.
+
+Remaining Phase 1 validations: P1.V1 (multi-language — mechanism is language-agnostic; needs a
+non-TS project to confirm) and P1.V2 (router unit tests — **no test harness exists** in the repo; needs
+a decision on adding one).
