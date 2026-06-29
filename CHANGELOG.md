@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.18.1
+
+Fix: MCP tools with object-array parameters (`add_excalidraw_elements`, `update_excalidraw_elements`,
+`set_excalidraw_scene`, `place_excalidraw_library_item`) declared their array `items` without a type,
+which strict MCP clients (e.g. VS Code) reject with "tool parameters array type must have items". The
+item schema now declares `type: object`.
+
 ## 3.18.0
 
 Code-aware: generate diagrams from code (Phase 2 P2.1).

@@ -26,6 +26,11 @@ const PATH = z
     "Target diagram path (workspace-relative unless absolute). If omitted, the active Excalidraw editor is used."
   );
 
+// An array of loosely-typed objects (element skeletons / update patches). Uses a
+// typed item schema so MCP clients that require `items` to declare a type (e.g.
+// VS Code) accept it; a plain `any` item serializes without a type.
+const OBJECT_ARRAY = z.array(z.record(z.string(), z.any()));
+
 type Json = { content: { type: "text"; text: string }[] };
 
 function result(data: unknown): Json {
@@ -114,7 +119,7 @@ export function createMcpServer(version: string): McpServer {
     {
       description:
         "Append elements from an array of Excalidraw element skeletons (rectangle/ellipse/diamond/text/line/arrow/image/frame, each optionally with a label and style). Returns { ids, added, elements } where elements expose containerId/boundTextId.",
-      inputSchema: { path: PATH, elements: z.array(z.any()) },
+      inputSchema: { path: PATH, elements: OBJECT_ARRAY },
     },
     async ({ path, elements }) =>
       result(await canvasCommand(path, "addElements", { elements }))
@@ -143,7 +148,7 @@ export function createMcpServer(version: string): McpServer {
     {
       description:
         "Patch existing elements by id. 'updates' is an array of { id, ...propertiesToChange } (x, y, width, height, angle, text, colors, etc.).",
-      inputSchema: { path: PATH, updates: z.array(z.any()) },
+      inputSchema: { path: PATH, updates: OBJECT_ARRAY },
     },
     async ({ path, updates }) =>
       result(await canvasCommand(path, "updateElements", { updates }))
@@ -182,7 +187,7 @@ export function createMcpServer(version: string): McpServer {
     {
       description:
         "Replace ALL elements on the canvas with a new set of skeletons (destructive).",
-      inputSchema: { path: PATH, elements: z.array(z.any()) },
+      inputSchema: { path: PATH, elements: OBJECT_ARRAY },
     },
     async ({ path, elements }) =>
       result(await canvasCommand(path, "setScene", { elements }))
@@ -524,7 +529,7 @@ export function createMcpServer(version: string): McpServer {
         path: PATH,
         id: z.string().optional(),
         index: z.number().optional(),
-        elements: z.array(z.any()).optional(),
+        elements: OBJECT_ARRAY.optional(),
         x: z.number().optional(),
         y: z.number().optional(),
       },
