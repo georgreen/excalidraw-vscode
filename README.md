@@ -135,6 +135,32 @@ Example prompts:
 - "Summarize the current diagram — read it as Mermaid first (`#getExcalidrawMermaid`)."
 - "Draw this as a flowchart: `#drawFromMermaid` `graph TD; A-->B; B-->C`."
 
+### Code-aware diagrams (link boxes to code)
+
+You can link diagram elements to **real code symbols** (classes, functions, methods, interfaces) and
+get language intelligence on the canvas — hover docs, live error/warning badges, and jump-to-code —
+by reusing the project's running language servers (no separate language server of our own).
+
+- **Link** an element: select it and run **"Excalidraw: Link Element to Code Symbol"**, or run
+  **"Excalidraw: Auto-link Elements to Code Symbols"** to match labelled shapes to symbols in bulk.
+- **Hover** a linked box → its signature + docs, anchored next to the element.
+- **Diagnostics**: linked elements whose file has problems show a coloured badge (red = error, amber =
+  warning); the messages are in the tooltip, and **clicking the badge jumps to the problem**.
+- **Navigate**: the element gets a `code:` link badge — click it (or "Go to code") to open the symbol.
+
+Agent tools (also available over MCP):
+
+- **link_excalidraw_to_symbol** — link `ids` to a `symbol`, `auto`-match by label, or `unlink`.
+- **get_excalidraw_code_links** — the diagram's element→symbol index.
+- **get_code_hover_for_element** — language-server signature/docs for a linked element.
+- **navigate_to_element_code** — open the code behind a linked element.
+- **get_linked_diagnostics** — error/warning counts for the files behind linked elements.
+
+Example prompts:
+
+- "Link the selected box to the `OrderService` class."
+- "Auto-link the boxes in this diagram to code, then tell me which linked files have errors."
+
 ### Controlling Excalidraw from external agents (MCP)
 
 The extension can also expose these tools over the **Model Context Protocol (MCP)** so that *external* agents — GitHub Copilot CLI, Claude Desktop, Cursor, Zed, etc. — can control Excalidraw, not just VS Code's built-in agent.

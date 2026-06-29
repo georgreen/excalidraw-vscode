@@ -540,12 +540,13 @@ export function createMcpServer(version: string): McpServer {
     "link_excalidraw_to_symbol",
     {
       description:
-        "Link diagram elements to a code symbol so they carry navigable, intelligence-bearing metadata. Provide 'symbol' (a class/function/method/interface name, e.g. 'OrderService' or 'OrderService.create') and the 'ids' to link; or set 'auto: true' to match each element to a workspace symbol by its label (optionally limited to 'ids'). The symbol is resolved via the running language servers.",
+        "Link diagram elements to a code symbol so they carry navigable, intelligence-bearing metadata. Provide 'symbol' (a class/function/method/interface name, e.g. 'OrderService' or 'OrderService.create') and the 'ids' to link; or set 'auto: true' to match each element to a workspace symbol by its label (optionally limited to 'ids'); or set 'unlink: true' with 'ids' to remove links. The symbol is resolved via the running language servers.",
       inputSchema: {
         path: PATH,
         ids: z.array(z.string()).optional(),
         symbol: z.string().optional(),
         auto: z.boolean().optional(),
+        unlink: z.boolean().optional(),
       },
     },
     async ({ path, ids, symbol, auto }) =>

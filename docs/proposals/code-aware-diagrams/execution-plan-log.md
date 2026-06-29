@@ -227,3 +227,18 @@ Q: what should clicking a diagnostic badge do? Decision: **jump to the problem**
 and selects that range; host `handleIntel` op `navigateDiagnostic`; the webview badge `onClick` looks
 up the element's codeLink and posts it (tooltip now hints "click to open the problem in code"). Falls
 back to opening the file when no diagnostics remain. Host + webview tsc + lint clean; shipped 3.16.1.
+
+### 2026-06-29 — P1.1 / P1.2 / P1.7 (3.17.0)
+
+- **P1.1** (schema): `setCodeLink` now validates a link carries a non-empty `symbol`, supports
+  **unlink** (`codeLink: null` removes `customData.codeLink` and only the extension's own `code:`
+  link, preserving a user-set URL). Agent tool `link_excalidraw_to_symbol` gains `unlink: true` (LM +
+  MCP manifests).
+- **P1.2** (auto-suggest): command **"Excalidraw: Auto-link Elements to Code Symbols"** —
+  `getElementLabels` → `bestWorkspaceSymbol` per label → multi-select confirmation → `setCodeLink`.
+  The opt-in human counterpart to the agent's `auto` mode.
+- **P1.7** (docs): README "Code-aware diagrams" section; CHANGELOG 3.16.0–3.17.0; QA changelog
+  section + checklist.
+Host + webview tsc + lint clean; built/installed 3.17.0. Phase 1 task list now complete (P1.1–P1.7);
+remaining Phase 1 items are validations P1.V1 (multi-language), P1.V2 (router unit tests), P1.V4
+(bundle/activation check).

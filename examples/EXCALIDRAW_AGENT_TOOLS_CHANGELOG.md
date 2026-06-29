@@ -6,6 +6,23 @@
 
 ---
 
+## Code-aware diagrams (added 3.13.1–3.17.0)
+
+Link diagram elements to code symbols and surface language intelligence by delegating to the running
+language servers. Tools (LM + MCP): `link_excalidraw_to_symbol` (symbol / `auto` / `unlink`),
+`get_excalidraw_code_links`, `get_code_hover_for_element`, `navigate_to_element_code`,
+`get_linked_diagnostics`. Commands: "Link Element to Code Symbol", "Auto-link Elements to Code Symbols".
+
+QA checklist:
+- [ ] Open `examples/code-aware-demo.excalidraw`; hover a box → signature/docs panel next to it.
+- [ ] A linked file with an error shows a red badge on its box; clicking the badge opens the problem.
+- [ ] Click a box's `code:` link badge / "Go to code" → opens the symbol.
+- [ ] Agent/MCP: `get_excalidraw_code_links` lists links; `get_code_hover_for_element` returns a
+      signature (works cold — resolution opens the file to wake the server); `get_linked_diagnostics`
+      reports counts; `link_excalidraw_to_symbol {auto:true}` links by label; `{unlink:true}` removes.
+
+---
+
 ## How to build & run
 
 > Build with **Node 22** (Node 25 crashes esbuild). The root `npm run build` is flaky;

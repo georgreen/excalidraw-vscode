@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { ExcalidrawEditor } from "../editor";
-import { symbolInformationToCodeLink } from "./router";
+import { bestWorkspaceSymbol, symbolInformationToCodeLink } from "./router";
 
 const VIEW_TYPE = "editor.excalidraw";
 
@@ -107,11 +107,103 @@ async function linkElementToSymbol() {
   );
 }
 
+interface LabelRecord {
+  id: string;
+  type: string;
+  label: string;
+  linked: boolean;
+}
+
+/**
+ * Scan the active diagram for unlinked, labelled shapes, match each label to a
+ * workspace symbol, and (after the user confirms the proposed links in a
+ * multi-select) attach them. The opt-in, human counterpart to the agent's
+ * `link_excalidraw_to_symbol { auto: true }`.
+ */
+async function autoLinkElements() {
+  const uri = getActiveExcalidrawUri();
+  if (!uri) {
+    vscode.window.showErrorMessage("Open an Excalidraw diagram first.");
+    return;
+  }
+  const editor = await ExcalidrawEditor.resolveEditor(uri);
+  const data = (await editor.sendCommand("getElementLabels")) as {
+    elements?: LabelRecord[];
+  };
+  const candidates = (data?.elements || []).filter(
+    (e) => !e.linked && e.label.trim() !== ""
+  );
+  if (candidates.length === 0) {
+    vscode.window.showInformationMessage(
+      "Excalidraw: no unlinked, labelled elements to auto-link."
+    );
+    return;
+  }
+
+  type Proposal = vscode.QuickPickItem & {
+    id: string;
+    codeLink: ReturnType<typeof symbolInformationToCodeLink>;
+  };
+  const proposals = await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: "Matching diagram labels to symbols…",
+    },
+    async () => {
+      const out: Proposal[] = [];
+      for (const c of candidates) {
+        const sym = await bestWorkspaceSymbol(c.label.trim());
+        if (!sym) {
+          continue;
+        }
+        const codeLink = symbolInformationToCodeLink(sym);
+        out.push({
+          id: c.id,
+          codeLink,
+          label: `${c.label}  →  ${codeLink.symbol}`,
+          description: codeLink.file,
+          picked: true,
+        });
+      }
+      return out;
+    }
+  );
+
+  if (proposals.length === 0) {
+    vscode.window.showInformationMessage(
+      "Excalidraw: no labels matched a workspace symbol."
+    );
+    return;
+  }
+
+  const chosen = await vscode.window.showQuickPick(proposals, {
+    canPickMany: true,
+    title: "Auto-link diagram elements to code symbols",
+    placeHolder: "Confirm the links to apply",
+  });
+  if (!chosen || chosen.length === 0) {
+    return;
+  }
+  for (const p of chosen) {
+    await editor.sendCommand("setCodeLink", {
+      ids: [p.id],
+      codeLink: p.codeLink,
+    });
+  }
+  vscode.window.showInformationMessage(
+    `Excalidraw: linked ${chosen.length} element(s) to code symbols.`
+  );
+}
+
 export function registerCodeIntelCommands(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "excalidraw.linkElementToSymbol",
       linkElementToSymbol
+    ),
+    vscode.commands.registerCommand(
+      "excalidraw.autoLinkElements",
+      autoLinkElements
     )
   );
 }

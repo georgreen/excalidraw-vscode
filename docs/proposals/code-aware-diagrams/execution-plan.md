@@ -87,15 +87,15 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
 **Goal:** production-quality link + hover + jump + diagnostics for humans and agents.
 
 **Tasks**
-- [ ] **P1.1** Finalize `CodeLink` schema + `setCodeLink` / `get_excalidraw_code_links`.
-- [ ] **P1.2** **Auto-suggest links** by label↔workspace-symbol match (opt-in prompt).
+- [x] **P1.1** Finalize `CodeLink` schema + `setCodeLink` / `get_excalidraw_code_links`.
+- [x] **P1.2** **Auto-suggest links** by label↔workspace-symbol match (opt-in prompt).
 - [x] **P1.3** Hover overlay polish (Markdown, loading/empty states, multi-result).
 - [x] **P1.4** Diagnostics badges as an **overlay layer** keyed by element id (no document dirtying);
   counts + message tooltips; severity colors.
 - [x] **P1.5** Navigation via extended `link-open` path.
 - [x] **P1.6** Agent tools: `link_excalidraw_to_symbol`, `get_excalidraw_code_links`,
   `get_code_hover_for_element`, `navigate_to_element_code`, `get_linked_diagnostics` (LM + MCP).
-- [ ] **P1.7** Docs: README/CHANGELOG/QA changelog; version bump.
+- [x] **P1.7** Docs: README/CHANGELOG/QA changelog; version bump.
 
 **Validation / exit criteria**
 - [ ] **P1.V1** Round-trips work across ≥2 languages (e.g. TS + Python).

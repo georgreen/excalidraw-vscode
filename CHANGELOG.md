@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.17.0
+
+Code-aware: auto-linking, unlinking, and schema validation (Phase 1 P1.1/P1.2).
+
+- New command **"Excalidraw: Auto-link Elements to Code Symbols"** — scans the diagram for unlinked,
+  labelled shapes, matches each label to a workspace symbol, and links the ones you confirm.
+- **Unlink**: `link_excalidraw_to_symbol` accepts `unlink: true` (with `ids`) to remove links;
+  `setCodeLink` validates that a link carries a non-empty `symbol`, and clearing only removes the
+  extension's own `code:` link (a user-set URL is preserved).
+
 ## 3.16.1
 
 Code-aware: diagnostic badges are now clickable.

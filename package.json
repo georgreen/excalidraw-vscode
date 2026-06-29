@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.16.1",
+    "version": "3.17.0",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -1342,7 +1342,7 @@
                 "toolReferenceName": "linkExcalidrawToSymbol",
                 "displayName": "Link Excalidraw To Symbol",
                 "userDescription": "Link diagram elements to a code symbol.",
-                "modelDescription": "Link diagram elements to a code symbol so they become navigable and carry language intelligence. Provide 'symbol' (a class/function/method/interface name, e.g. 'OrderService' or 'OrderService.create') together with the 'ids' to link; or set 'auto: true' to link elements by matching their label to a workspace symbol (optionally limited to 'ids'). The symbol is resolved via the running language servers (no custom index). Returns the linked ids and resolved file. Requires the project folder to be open and indexed.",
+                "modelDescription": "Link diagram elements to a code symbol so they become navigable and carry language intelligence. Provide 'symbol' (a class/function/method/interface name, e.g. 'OrderService' or 'OrderService.create') together with the 'ids' to link; or set 'auto: true' to link elements by matching their label to a workspace symbol (optionally limited to 'ids'). The symbol is resolved via the running language servers (no custom index). Returns the linked ids and resolved file. Requires the project folder to be open and indexed. Set 'unlink: true' with 'ids' to remove a link.",
                 "canBeReferencedInPrompt": true,
                 "icon": "$(link)",
                 "inputSchema": {
@@ -1366,6 +1366,10 @@
                         "auto": {
                             "type": "boolean",
                             "description": "If true, match each element to a workspace symbol by its label instead of using 'symbol'."
+                        },
+                        "unlink": {
+                            "type": "boolean",
+                            "description": "If true, remove the code link from the given 'ids' instead of setting one."
                         }
                     }
                 }
@@ -1487,6 +1491,12 @@
                 "category": "Excalidraw",
                 "title": "Link Element to Code Symbol",
                 "icon": "$(symbol-class)"
+            },
+            {
+                "command": "excalidraw.autoLinkElements",
+                "category": "Excalidraw",
+                "title": "Auto-link Elements to Code Symbols",
+                "icon": "$(sparkle)"
             },
             {
                 "command": "excalidraw.updateTheme",
@@ -1732,6 +1742,10 @@
                 },
                 {
                     "command": "excalidraw.linkElementToSymbol",
+                    "when": "activeCustomEditorId == 'editor.excalidraw'"
+                },
+                {
+                    "command": "excalidraw.autoLinkElements",
                     "when": "activeCustomEditorId == 'editor.excalidraw'"
                 },
                 {

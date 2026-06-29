@@ -44,8 +44,17 @@ export async function linkToSymbol(input: {
   ids?: string[];
   symbol?: string;
   auto?: boolean;
+  unlink?: boolean;
 }): Promise<Record<string, unknown>> {
-  const { path, ids, symbol, auto } = input;
+  const { path, ids, symbol, auto, unlink } = input;
+
+  if (unlink) {
+    if (!ids || ids.length === 0) {
+      throw new Error("Provide the 'ids' of the elements to unlink.");
+    }
+    await canvasCommand(path, "setCodeLink", { ids, codeLink: null });
+    return { unlinked: ids, count: ids.length };
+  }
 
   if (auto && !symbol) {
     const data = (await canvasCommand(path, "getElementLabels")) as {
@@ -161,6 +170,7 @@ interface LinkInput {
   ids?: string[];
   symbol?: string;
   auto?: boolean;
+  unlink?: boolean;
 }
 interface PathInput {
   path?: string;
@@ -176,7 +186,9 @@ class LinkToSymbolTool implements vscode.LanguageModelTool<LinkInput> {
   ) {
     const i = options.input;
     return {
-      invocationMessage: i.auto
+      invocationMessage: i.unlink
+        ? `Unlinking elements in ${target(i.path)}`
+        : i.auto
         ? `Auto-linking elements in ${target(i.path)} to code symbols`
         : `Linking elements in ${target(i.path)} to ${i.symbol}`,
     };

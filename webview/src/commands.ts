@@ -127,22 +127,38 @@ async function runAction(
     case "setCodeLink": {
       const idSet = new Set<string>(params.ids || []);
       const codeLink = params.codeLink;
-      // Also set the element `link` so Excalidraw shows its native link badge +
-      // hover tooltip, and a click fires onLinkOpen (handled as code navigation).
-      const linkLabel = codeLink?.symbol
-        ? `code: ${codeLink.symbol}`
-        : undefined;
-      const elements = api.getSceneElementsIncludingDeleted().map((el) =>
-        idSet.has(el.id)
-          ? {
-              ...el,
-              link: linkLabel ?? (el as any).link ?? null,
-              customData: { ...((el as any).customData || {}), codeLink },
-            }
-          : el
-      );
+      const clearing = codeLink === null || codeLink === undefined;
+      if (
+        !clearing &&
+        (typeof codeLink.symbol !== "string" || codeLink.symbol.trim() === "")
+      ) {
+        throw new Error(
+          "setCodeLink requires codeLink.symbol (a non-empty string), or codeLink: null to unlink."
+        );
+      }
+      // Mirror the link into the element's native `link` so Excalidraw shows its
+      // badge/tooltip and a click fires onLinkOpen (handled as code navigation).
+      const linkLabel = clearing ? null : `code: ${codeLink.symbol}`;
+      const elements = api.getSceneElementsIncludingDeleted().map((el) => {
+        if (!idSet.has(el.id)) {
+          return el;
+        }
+        const customData = { ...((el as any).customData || {}) };
+        const existingLink = (el as any).link ?? null;
+        if (clearing) {
+          delete customData.codeLink;
+          // Only clear our own "code:" link; preserve a user-set URL link.
+          const link =
+            typeof existingLink === "string" && existingLink.startsWith("code:")
+              ? null
+              : existingLink;
+          return { ...el, link, customData };
+        }
+        customData.codeLink = codeLink;
+        return { ...el, link: linkLabel, customData };
+      });
       api.updateScene({ elements });
-      return { updated: (params.ids || []).length };
+      return { updated: (params.ids || []).length, cleared: clearing };
     }
 
     case "getCodeLinks": {
