@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.18.1",
+    "version": "3.19.0",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -1773,7 +1773,7 @@
                     "excalidraw.mcp.port": {
                         "type": "number",
                         "default": 0,
-                        "markdownDescription": "Preferred port for the MCP bridge server. Use `0` to pick a free port automatically (recommended). The actual URL and port are written to a discovery file (`~/.excalidraw-vscode/mcp.json`)."
+                        "markdownDescription": "Preferred port for this window's MCP bridge. Use `0` to pick a free port automatically (recommended). If the preferred port is already in use by another window, a free port is chosen instead. The active URL/port is written to a per-workspace discovery file under `~/.excalidraw-vscode/servers/`. For a stable URL, set this in a **workspace** `.vscode/settings.json` rather than global user settings (a single global port can only be owned by one window)."
                     }
                 }
             }

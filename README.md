@@ -175,12 +175,15 @@ When **enabled by default**, the **desktop** extension host starts a localhost-o
    }
    ```
 
-2. On startup the extension writes a discovery file to `~/.excalidraw-vscode/mcp.json`:
+2. On startup the extension writes a discovery file. Each running window writes its own file under
+   `~/.excalidraw-vscode/servers/<workspace>.json` (and a convenience pointer at
+   `~/.excalidraw-vscode/mcp.json`):
 
    ```json
    {
      "url": "http://127.0.0.1:<port>/mcp",
-     "port": 12345
+     "port": 12345,
+     "workspace": "/path/to/your/project"
    }
    ```
 
@@ -197,7 +200,9 @@ When **enabled by default**, the **desktop** extension host starts a localhost-o
    }
    ```
 
-The same canvas/file tools listed above are available over MCP. The server binds to `127.0.0.1` only (no token required). Use `excalidraw.mcp.port` to pin a fixed port (default `0` = pick a free one). Progress and the active URL are logged to the **Excalidraw MCP** output channel.
+The same canvas/file tools listed above are available over MCP. The server binds to `127.0.0.1` only (no token required). Progress and the active URL are logged to the **Excalidraw MCP** output channel.
+
+**Multiple windows.** Each VS Code window runs its own bridge in its own extension host (a bridge can only drive editors in *its* window). By default each picks a **free port** and writes its own `servers/<workspace>.json`, so windows never clobber each other — read that directory to see every running server. If you want a **stable URL** for one project (e.g. for a Copilot CLI config), set `excalidraw.mcp.port` in **that project's** `.vscode/settings.json` (not in global settings — a single global port can only be claimed by one window; others fall back to a free port).
 
 VS Code's own Copilot can also auto-discover this server (via the MCP server definition provider) on VS Code versions that support it — no manual configuration needed.
 

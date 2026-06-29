@@ -280,3 +280,21 @@ item's selectionRange) and edges, and ranks/rows them for layout. New webview ac
 `generate_diagram_from_symbol` (LM + MCP + activation event). Host+webview tsc, lint, 12 tests, dual
 webpack all clean; shipped 3.18.0. (Part of P2.2's `generate_diagram_from_symbol` landed here too;
 `expand_element_relations` still pending.) Live MCP validation pending a window reload.
+
+### 2026-06-30 — Multi-window MCP flaw found + fixed (3.19.0)
+
+While validating P2.1 over MCP, calls hit the wrong window: the bridge was owned by another VS Code
+window (workspace `reading-books`), because a **single global** `excalidraw.mcp.port` (39127) +
+**single global** discovery file (`~/.excalidraw-vscode/mcp.json`) meant one window won the port and
+clobbered discovery (last-writer-wins); other windows' bridges died silently on EADDRINUSE.
+
+Root cause is inherent in part: each window is a separate extension host and a bridge can only drive
+**its own** window's editors — one static CLI endpoint can't span windows. Fix (Option A):
+- **Per-workspace discovery dir** `~/.excalidraw-vscode/servers/<fnv(workspace)>.json` (no clobbering;
+  lists every live server). Legacy `mcp.json` kept as a convenience pointer.
+- **Port fallback**: preferred port in use → bind a free port (log it) instead of failing.
+- **Stale cleanup**: drop discovery files whose pid is dead, on startup.
+- Moved the user's port pin from **global** settings to this repo's `.vscode/settings.json`
+  (git-ignored); README + `mcp.port` description updated to recommend per-workspace pinning.
+Host tsc + lint + 12 tests + webpack clean; shipped 3.19.0. (P2.1 live validation still pending —
+needs the excalidraw window to own the bridge after reload.)

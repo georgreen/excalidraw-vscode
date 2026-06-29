@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.19.0
+
+MCP bridge: multi-window safe discovery.
+
+- Each VS Code window now writes its **own** discovery file under
+  `~/.excalidraw-vscode/servers/<workspace>.json` (plus a convenience `mcp.json` pointer), so multiple
+  open windows no longer clobber each other — the directory lists every running server with its
+  `url`/`port`/`workspace`.
+- If the preferred `excalidraw.mcp.port` is already taken by another window, the bridge now **falls
+  back to a free port** (and logs it) instead of failing to start. Stale discovery files (dead
+  processes) are cleaned up on startup.
+- Guidance: pin `excalidraw.mcp.port` in a **workspace** `.vscode/settings.json` (not global) when you
+  want a stable URL for one project.
+
 ## 3.18.1
 
 Fix: MCP tools with object-array parameters (`add_excalidraw_elements`, `update_excalidraw_elements`,
