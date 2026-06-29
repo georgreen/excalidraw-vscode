@@ -253,3 +253,18 @@ invoking one might not activate the extension. Added them (3.17.1). P1.V4 done.
 Remaining Phase 1 validations: P1.V1 (multi-language — mechanism is language-agnostic; needs a
 non-TS project to confirm) and P1.V2 (router unit tests — **no test harness exists** in the repo; needs
 a decision on adding one).
+
+### 2026-06-29 — P1.V2 PASSED: router unit tests (Vitest)
+
+Added a lightweight test harness (no test infra existed): **Vitest** (`vitest@^1.6.1`, pinned to match
+the repo's `@types/node@18`) with a mocked `vscode` module (`src/test/vscode.mock.ts`, aliased via
+`vitest.config.ts`). `npm test` → `vitest run`. Tests in `src/codeintel/router.test.ts` (12, all green)
+cover `symbolInformationToCodeLink` (call-suffix stripping, dotted methods), `bestWorkspaceSymbol`
+(clean-name match, container preference), `resolveSymbol` (cached path, workspace+refine path,
+undefined), `hoverMarkdown`, and `diagnosticsForLinks` (counts, messages, per-file caching).
+`tsconfig.json` excludes `*.test.ts` / `src/test` / `vitest.config.ts` so `tsc`/webpack ignore them
+(the mock intentionally diverges from `@types/vscode`). Host tsc + lint + dual webpack still clean.
+Addresses P1.V2 and part of X.2.
+
+Remaining Phase 1: **P1.V1** (multi-language) — language-agnostic by design; needs a non-TS project
+(e.g. Python) to confirm. That leaves Phase 1 ready to close pending that one manual check.

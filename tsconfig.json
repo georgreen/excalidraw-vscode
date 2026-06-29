@@ -17,6 +17,9 @@
     ".vscode-test",
     "**/src/excalidraw/**",
     "node_modules",
-    "webview"
+    "webview",
+    "vitest.config.ts",
+    "**/*.test.ts",
+    "src/test"
   ]
 }
