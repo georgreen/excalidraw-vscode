@@ -205,6 +205,86 @@ async function runAction(
       return { elements };
     }
 
+    case "placeGeneratedGraph": {
+      const nodes = (params.nodes as any[]) || [];
+      const edges = (params.edges as any[]) || [];
+      const ox = typeof params.originX === "number" ? params.originX : 120;
+      const oy = typeof params.originY === "number" ? params.originY : 120;
+      const GAPX = 300;
+      const GAPY = 120;
+      const kindColor = (kind?: string): string => {
+        switch (kind) {
+          case "interface":
+            return "#d0bfff";
+          case "function":
+            return "#a5d8ff";
+          case "method":
+            return "#ffd8a8";
+          case "class":
+            return "#b2f2bb";
+          default:
+            return "#ffec99";
+        }
+      };
+      const nodeSkeletons: any[] = nodes.map((n: any) => ({
+        type: "rectangle",
+        x: ox + (n.rank || 0) * GAPX,
+        y: oy + (n.row || 0) * GAPY,
+        width: 230,
+        height: 70,
+        backgroundColor: kindColor(n.codeLink?.kind),
+        label: { text: String(n.label ?? n.codeLink?.symbol ?? "") },
+        link: n.codeLink?.symbol ? `code: ${n.codeLink.symbol}` : undefined,
+        customData: n.codeLink ? { codeLink: n.codeLink } : undefined,
+      }));
+      const nodeEls = convertToExcalidrawElements(nodeSkeletons, {
+        regenerateIds: true,
+      });
+      // convertToExcalidrawElements emits container + bound label; the i-th
+      // non-text element corresponds to node[i].
+      const containers = nodeEls.filter((e) => e.type !== "text");
+      const keyToId = new Map<string, string>();
+      nodes.forEach((n: any, i: number) => {
+        if (containers[i]) {
+          keyToId.set(n.key, containers[i].id);
+        }
+      });
+      api.updateScene({ elements: [...api.getSceneElements(), ...nodeEls] });
+
+      const arrowSkeletons = edges
+        .map((e: any) => {
+          const startId = keyToId.get(e.from);
+          const endId = keyToId.get(e.to);
+          if (!startId || !endId) {
+            return null;
+          }
+          const s = api.getSceneElements().find((el) => el.id === startId)!;
+          return {
+            type: "arrow",
+            x: s.x + (s.width || 0) / 2,
+            y: s.y + (s.height || 0) / 2,
+            start: { id: startId },
+            end: { id: endId },
+            ...(e.label ? { label: { text: String(e.label) } } : {}),
+          };
+        })
+        .filter(Boolean) as any[];
+      if (arrowSkeletons.length > 0) {
+        const arrowEls = convertToExcalidrawElements(arrowSkeletons, {
+          regenerateIds: true,
+        });
+        api.updateScene({ elements: [...api.getSceneElements(), ...arrowEls] });
+      }
+      return {
+        nodes: nodes.map((n: any) => ({
+          key: n.key,
+          id: keyToId.get(n.key),
+          symbol: n.codeLink?.symbol,
+        })),
+        edgeCount: arrowSkeletons.length,
+      };
+    }
+
     case "addElements": {
       const skeleton = params.elements;
       if (!Array.isArray(skeleton)) {

@@ -41,7 +41,8 @@ export type CommandAction =
   | "save"
   | "setCodeLink"
   | "getCodeLinks"
-  | "getElementLabels";
+  | "getElementLabels"
+  | "placeGeneratedGraph";
 
 export interface CommandRequest {
   type: "command";

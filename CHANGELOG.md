@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.18.0
+
+Code-aware: generate diagrams from code (Phase 2 P2.1).
+
+- New tool **generate_diagram_from_symbol** (Language Model + MCP): walks the language server's call
+  hierarchy (`mode: "calls"`, default) or type hierarchy (`mode: "types"`) from a symbol and lays the
+  result out on the canvas as **pre-linked** boxes (depth- and node-capped). Every generated node
+  carries a precise code link, so the diagram is immediately navigable (hover / jump / diagnostics).
+
 ## 3.17.1
 
 Fix: add `onLanguageModelTool` activation events for the five code-aware tools

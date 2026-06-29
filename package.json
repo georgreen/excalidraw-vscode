@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.17.1",
+    "version": "3.18.0",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -66,6 +66,7 @@
         "onLanguageModelTool:get_code_hover_for_element",
         "onLanguageModelTool:navigate_to_element_code",
         "onLanguageModelTool:get_linked_diagnostics",
+        "onLanguageModelTool:generate_diagram_from_symbol",
         "onStartupFinished"
     ],
     "repository": {
@@ -1487,6 +1488,57 @@
                             "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
                         }
                     }
+                }
+            },
+            {
+                "name": "generate_diagram_from_symbol",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "code"
+                ],
+                "toolReferenceName": "generateDiagramFromSymbol",
+                "displayName": "Generate Diagram From Symbol",
+                "userDescription": "Generate a diagram from a code symbol's hierarchy.",
+                "modelDescription": "Generate a diagram from a code symbol by walking the language server's hierarchy and place it on the active Excalidraw canvas, pre-linked. 'mode' is 'calls' (outgoing call graph, default) or 'types' (supertype/inheritance graph); 'depth' (1-5) and 'maxNodes' cap the graph. Each generated node carries a precise code link so the diagram is immediately navigable (hover/jump/diagnostics). Returns node/edge counts and a truncated flag.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(type-hierarchy)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "symbol": {
+                            "type": "string",
+                            "description": "Symbol to visualize (class/function/method name, e.g. 'OrderService')."
+                        },
+                        "file": {
+                            "type": "string",
+                            "description": "Optional workspace-relative file hint to disambiguate the symbol."
+                        },
+                        "mode": {
+                            "type": "string",
+                            "enum": [
+                                "calls",
+                                "types"
+                            ],
+                            "description": "'calls' = outgoing call graph (default); 'types' = supertype/inheritance graph."
+                        },
+                        "depth": {
+                            "type": "number",
+                            "description": "Traversal depth, 1-5 (default 2)."
+                        },
+                        "maxNodes": {
+                            "type": "number",
+                            "description": "Maximum number of nodes (default 30)."
+                        }
+                    },
+                    "required": [
+                        "symbol"
+                    ]
                 }
             }
         ],

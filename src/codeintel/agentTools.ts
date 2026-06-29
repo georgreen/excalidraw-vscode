@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { canvasCommand } from "../canvasTools";
+import { generateGraph } from "./generate";
 import {
   CodeLink,
   bestWorkspaceSymbol,
@@ -153,6 +154,33 @@ export async function linkedDiagnostics(
   return { files: Object.keys(badges).length, badges };
 }
 
+/** Generate a diagram from a symbol's call/type hierarchy and place it, pre-linked. */
+export async function generateDiagramFromSymbol(input: {
+  path?: string;
+  symbol: string;
+  file?: string;
+  mode?: "calls" | "types";
+  depth?: number;
+  maxNodes?: number;
+  originX?: number;
+  originY?: number;
+}): Promise<Record<string, unknown>> {
+  const graph = await generateGraph(input);
+  const placed = (await canvasCommand(input.path, "placeGeneratedGraph", {
+    nodes: graph.nodes,
+    edges: graph.edges,
+    originX: input.originX,
+    originY: input.originY,
+  })) as { nodes?: unknown };
+  return {
+    mode: graph.mode,
+    nodeCount: graph.nodes.length,
+    edgeCount: graph.edges.length,
+    truncated: graph.truncated,
+    nodes: placed?.nodes,
+  };
+}
+
 // ---- Language Model tools --------------------------------------------------
 
 function jsonResult(data: unknown): vscode.LanguageModelToolResult {
@@ -241,6 +269,38 @@ class GetLinkedDiagnosticsTool implements vscode.LanguageModelTool<PathInput> {
   }
 }
 
+interface GenerateInput {
+  path?: string;
+  symbol: string;
+  file?: string;
+  mode?: "calls" | "types";
+  depth?: number;
+  maxNodes?: number;
+  originX?: number;
+  originY?: number;
+}
+
+class GenerateDiagramTool implements vscode.LanguageModelTool<GenerateInput> {
+  async prepareInvocation(
+    options: vscode.LanguageModelToolInvocationPrepareOptions<GenerateInput>
+  ) {
+    const i = options.input;
+    return {
+      invocationMessage: `Generating a ${i.mode ?? "calls"} diagram from ${
+        i.symbol
+      }`,
+    };
+  }
+  async invoke(
+    options: vscode.LanguageModelToolInvocationOptions<GenerateInput>
+  ) {
+    return jsonResult({
+      ok: true,
+      ...(await generateDiagramFromSymbol(options.input)),
+    });
+  }
+}
+
 export function registerCodeIntelTools(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.lm.registerTool("link_excalidraw_to_symbol", new LinkToSymbolTool()),
@@ -256,6 +316,10 @@ export function registerCodeIntelTools(context: vscode.ExtensionContext) {
     vscode.lm.registerTool(
       "get_linked_diagnostics",
       new GetLinkedDiagnosticsTool()
+    ),
+    vscode.lm.registerTool(
+      "generate_diagram_from_symbol",
+      new GenerateDiagramTool()
     )
   );
 }

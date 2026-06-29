@@ -268,3 +268,15 @@ Addresses P1.V2 and part of X.2.
 
 Remaining Phase 1: **P1.V1** (multi-language) — language-agnostic by design; needs a non-TS project
 (e.g. Python) to confirm. That leaves Phase 1 ready to close pending that one manual check.
+
+### 2026-06-29 — P2.1 generate-from-code (3.18.0)
+
+Engine `src/codeintel/generate.ts`: `generateGraph({symbol,file,mode,depth,maxNodes})` resolves the
+symbol, runs `prepareCallHierarchy`+`provideOutgoingCalls` (calls) or `prepareTypeHierarchy`+
+`provideSupertypes` (types), BFS with depth (1-5) + node caps, builds nodes (precise codeLink from each
+item's selectionRange) and edges, and ranks/rows them for layout. New webview action
+`placeGeneratedGraph` lays out node rectangles (kind-coloured, pre-linked) via
+`convertToExcalidrawElements`, then binds arrows by mapped ids. Exposed as
+`generate_diagram_from_symbol` (LM + MCP + activation event). Host+webview tsc, lint, 12 tests, dual
+webpack all clean; shipped 3.18.0. (Part of P2.2's `generate_diagram_from_symbol` landed here too;
+`expand_element_relations` still pending.) Live MCP validation pending a window reload.

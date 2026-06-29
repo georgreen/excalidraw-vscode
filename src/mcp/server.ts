@@ -15,6 +15,7 @@ import {
   hoverForElement,
   navigateElement,
   linkedDiagnostics,
+  generateDiagramFromSymbol,
 } from "../codeintel/agentTools";
 import { ExcalidrawEditor } from "../editor";
 
@@ -593,6 +594,34 @@ export function createMcpServer(version: string): McpServer {
       inputSchema: { path: PATH },
     },
     async ({ path }) => result({ ok: true, ...(await linkedDiagnostics(path)) })
+  );
+
+  server.registerTool(
+    "generate_diagram_from_symbol",
+    {
+      description:
+        "Generate a diagram from a code symbol by walking the language server's hierarchy and place it on the canvas, pre-linked. 'mode' is 'calls' (outgoing call graph, default) or 'types' (supertype/inheritance graph). 'depth' (1-5) and 'maxNodes' cap the graph. Each node carries a precise codeLink so the result is immediately navigable. Returns node/edge counts and whether it was truncated.",
+      inputSchema: {
+        path: PATH,
+        symbol: z.string(),
+        file: z.string().optional(),
+        mode: z.enum(["calls", "types"]).optional(),
+        depth: z.number().optional(),
+        maxNodes: z.number().optional(),
+      },
+    },
+    async ({ path, symbol, file, mode, depth, maxNodes }) =>
+      result({
+        ok: true,
+        ...(await generateDiagramFromSymbol({
+          path,
+          symbol,
+          file,
+          mode,
+          depth,
+          maxNodes,
+        })),
+      })
   );
 
   return server;
