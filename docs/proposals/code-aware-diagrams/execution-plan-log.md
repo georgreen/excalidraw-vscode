@@ -348,3 +348,14 @@ returns the counts for agents. **Design deviation (logged):** implemented as an 
 + agent field**, not a persistent badge on every node — a reference query per node would be expensive
 and noisy; on-demand keeps it cheap and clean. Host+webview tsc, lint, 12 tests, dual webpack clean;
 shipped 3.21.0.
+
+### 2026-06-30 — P2.4 members (3.22.0)
+
+Added `members` to expand kinds. `expandRelations` for `members` runs
+`executeDocumentSymbolProvider` on the source's file, finds the class/interface symbol at the source
+position (`findSymbolAtPosition`: prefer selectionRange, else deepest range), and inserts each child
+(method/field) as a pre-linked node (`Container.member` dotted symbol + containerName; label includes
+the symbol's `detail` signature when provided). Direction "out"; reuses the existing generic
+`expandFromElement` webview placement (no webview change). Note: "signature help" in the original task
+is delivered via the member `detail` + the existing code-aware hover (full signature), not the
+call-site `executeSignatureHelpProvider`. Host tsc + lint + 12 tests + webpack clean; shipped 3.22.0.

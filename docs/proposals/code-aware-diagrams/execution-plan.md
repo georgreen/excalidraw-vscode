@@ -132,7 +132,7 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
   pre-linked. Depth limit + node cap.
 - [x] **P2.2** `generate_diagram_from_symbol` and `expand_element_relations` agent tools.
 - [x] **P2.3** Reference/implementation **count badges** (shown in the selection panel + agent hover; on-demand, not a persistent per-node badge).
-- [ ] **P2.4** Insert **members with signatures** (`executeDocumentSymbolProvider` + signature help).
+- [x] **P2.4** Insert **members with signatures** via expand kind `members` (`executeDocumentSymbolProvider`; signatures via member detail + code-aware hover).
 - [ ] **P2.5** **Link freshness**: `onDidRenameFiles` / `onDidChangeTextDocument` → update hints /
   mark stale; surface `status:"stale"` as a badge ("diagram linter").
 - [ ] **P2.6** **Reverse index + CodeLens**: scan `customData.codeLink` across `.excalidraw` files;

@@ -212,7 +212,8 @@ export type RelationKind =
   | "callers"
   | "supertypes"
   | "subtypes"
-  | "implementations";
+  | "implementations"
+  | "members";
 
 export interface RelationNeighbor {
   key: string;
@@ -241,6 +242,31 @@ function locationToItem(loc: vscode.Location | vscode.LocationLink): {
   }
   const l = loc as vscode.Location;
   return { uri: l.uri, range: l.range };
+}
+
+/**
+ * Find the document symbol at a position: prefer the one whose selectionRange
+ * (the identifier) contains it, else the deepest whose full range contains it.
+ */
+function findSymbolAtPosition(
+  symbols: vscode.DocumentSymbol[],
+  pos: vscode.Position
+): vscode.DocumentSymbol | undefined {
+  let bySelection: vscode.DocumentSymbol | undefined;
+  let byRange: vscode.DocumentSymbol | undefined;
+  const dfs = (list: vscode.DocumentSymbol[]) => {
+    for (const s of list) {
+      if (s.selectionRange.contains(pos)) {
+        bySelection = s;
+      }
+      if (s.range.contains(pos)) {
+        byRange = s;
+        dfs(s.children || []);
+      }
+    }
+  };
+  dfs(symbols);
+  return bySelection || byRange;
 }
 
 /**
@@ -301,6 +327,47 @@ export async function expandRelations(opts: {
 
   const items: HierarchyItem[] = [];
   let direction: "out" | "in" = "out";
+
+  if (kind === "members") {
+    const symbols =
+      (await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+        "vscode.executeDocumentSymbolProvider",
+        r.uri
+      )) || [];
+    const container = findSymbolAtPosition(symbols, r.position);
+    const className = cleanName(opts.codeLink.symbol);
+    const neighbors: RelationNeighbor[] = [];
+    const seenKeys = new Set<string>();
+    let truncated = false;
+    for (const ch of container?.children || []) {
+      if (neighbors.length >= maxNodes) {
+        truncated = true;
+        break;
+      }
+      const start = ch.selectionRange.start;
+      const key = `${r.uri.toString()}@${start.line}:${start.character}`;
+      if (seenKeys.has(key)) {
+        continue;
+      }
+      seenKeys.add(key);
+      const member = cleanName(ch.name);
+      neighbors.push({
+        key,
+        label: ch.detail ? `${member} ${ch.detail}`.trim() : member,
+        codeLink: {
+          kind: vscode.SymbolKind[ch.kind]?.toLowerCase(),
+          symbol: `${className}.${member}`,
+          containerName: className,
+          file: vscode.workspace.asRelativePath(r.uri),
+          uri: r.uri.toString(),
+          selectionStart: { line: start.line, character: start.character },
+          lastResolved: new Date().toISOString(),
+          status: "linked",
+        },
+      });
+    }
+    return { kind, direction: "out", neighbors, truncated };
+  }
 
   if (kind === "callees" || kind === "callers") {
     const roots =

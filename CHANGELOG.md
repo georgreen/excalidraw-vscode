@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.22.0
+
+Code-aware: insert class/interface members (Phase 2 P2.4).
+
+- `expand_element_relations` gains a **`members`** kind: insert a class/interface's methods and fields
+  as pre-linked nodes connected to it. Each member is navigable and its full signature is available on
+  hover (and the node label includes the member's signature detail when the language server provides
+  it).
+
 ## 3.21.0
 
 Code-aware: reference & implementation counts (Phase 2 P2.3).

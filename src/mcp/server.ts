@@ -636,7 +636,7 @@ export function createMcpServer(version: string): McpServer {
     "expand_element_relations",
     {
       description:
-        "Grow the diagram from an existing linked element by one relationship hop, adding the neighbors as pre-linked nodes connected to it. 'id' is the element id (from get_excalidraw_code_links). 'kind' is one of: 'callees' (functions it calls), 'callers' (callers of it), 'supertypes', 'subtypes', or 'implementations'. Externals (node_modules / language libs) are excluded unless 'includeExternal' is true. Existing nodes are reused (not duplicated). Returns counts of added/connected/reused.",
+        "Grow the diagram from an existing linked element by one relationship hop, adding the neighbors as pre-linked nodes connected to it. 'id' is the element id (from get_excalidraw_code_links). 'kind' is one of: 'callees' (functions it calls), 'callers' (callers of it), 'supertypes', 'subtypes', 'implementations', or 'members' (a class/interface's methods/fields, each pre-linked so its signature is available on hover). Externals (node_modules / language libs) are excluded unless 'includeExternal' is true. Existing nodes are reused (not duplicated). Returns counts of added/connected/reused.",
       inputSchema: {
         path: PATH,
         id: z.string(),
@@ -646,6 +646,7 @@ export function createMcpServer(version: string): McpServer {
           "supertypes",
           "subtypes",
           "implementations",
+          "members",
         ]),
         maxNodes: z.number().optional(),
         includeExternal: z.boolean().optional(),

@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.21.0",
+    "version": "3.22.0",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -1557,7 +1557,7 @@
                 "toolReferenceName": "expandElementRelations",
                 "displayName": "Expand Element Relations",
                 "userDescription": "Grow the diagram from a linked element by one relationship hop.",
-                "modelDescription": "Grow the diagram from an existing linked element by one relationship hop, adding the neighbours as pre-linked nodes connected to it. 'id' is the element id (from get_excalidraw_code_links). 'kind' is one of 'callees' (functions it calls), 'callers' (its callers), 'supertypes', 'subtypes', or 'implementations'. External symbols (node_modules / language libs) are excluded unless includeExternal:true. Existing nodes are reused, not duplicated. Returns counts of added/connected/reused.",
+                "modelDescription": "Grow the diagram from an existing linked element by one relationship hop, adding the neighbours as pre-linked nodes connected to it. 'id' is the element id (from get_excalidraw_code_links). 'kind' is one of 'callees' (functions it calls), 'callers' (its callers), 'supertypes', 'subtypes', 'implementations', or 'members' (a class/interface's methods/fields). External symbols (node_modules / language libs) are excluded unless includeExternal:true. Existing nodes are reused, not duplicated. Returns counts of added/connected/reused.",
                 "canBeReferencedInPrompt": true,
                 "icon": "$(git-merge)",
                 "inputSchema": {
@@ -1578,9 +1578,10 @@
                                 "callers",
                                 "supertypes",
                                 "subtypes",
-                                "implementations"
+                                "implementations",
+                                "members"
                             ],
-                            "description": "Relationship to expand."
+                            "description": "Relationship to expand: callees, callers, supertypes, subtypes, implementations, or members (a class/interface's methods/fields)."
                         },
                         "maxNodes": {
                             "type": "number",
