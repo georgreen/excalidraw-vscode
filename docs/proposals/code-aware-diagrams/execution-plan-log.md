@@ -298,3 +298,20 @@ Root cause is inherent in part: each window is a separate extension host and a b
   (git-ignored); README + `mcp.port` description updated to recommend per-workspace pinning.
 Host tsc + lint + 12 tests + webpack clean; shipped 3.19.0. (P2.1 live validation still pending —
 needs the excalidraw window to own the bridge after reload.)
+
+### 2026-06-30 — P2.1 + multi-window fix validated over MCP (3.19.0)
+
+Multi-window discovery confirmed working: two live bridges, no clobbering — `reading-books` on a
+dynamic port (50204), `excalidraw-vscode` on its pinned 39127 (from workspace `.vscode/settings.json`),
+each with its own `servers/<key>.json`; `mcp.json` points at the excalidraw window. Validated against
+the **correct** window via the per-workspace discovery file.
+
+P2.1 generate (P2.V2): `generate_diagram_from_symbol` —
+- `ExcalidrawEditor` (calls, d2) → 2 nodes / 1 edge (class call-hierarchy is sparse).
+- `navigateToLink` (calls, d2, max 20) → 20 nodes / 25 edges (truncated), tracing real outgoing calls
+  (resolveSymbol, fileToUri, openTextDocument, showTextDocument, …). All nodes pre-linked to real files
+  (`get_excalidraw_code_links` → 22). Hover on a generated node returned the full signature + JSDoc —
+  **nodes are navigable immediately**. P2.V2 PASS.
+- Note (future polish): "calls" mode pulls in `node_modules`/TS-lib symbols (executeCommand, filter,
+  endsWith) — consider an option to exclude externals for cleaner graphs.
+The earlier "could not resolve" failures were purely the wrong-window routing (now fixed), not P2.1.

@@ -154,7 +154,7 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
 **Validation / exit criteria**
 - [ ] **P2.V1** Generate-from-hierarchy unit test (fixture → expected nodes/edges), mirroring
   `sceneToMermaid` test.
-- [ ] **P2.V2** Visualize a real class graph; nodes are navigable (hover/jump) immediately.
+- [x] **P2.V2** Visualize a real class graph; nodes are navigable (hover/jump) immediately.
 - [ ] **P2.V3** Rename a linked symbol → diagram shows stale, then auto-updates where resolvable.
 - [ ] **P2.V4** Clicking a **direct-call arrow** jumps/peeks the real call site; clicking the demo's
   indirect `ExcalidrawEditor → resolveSymbol` arrow reports "conceptual/transitive" instead of
