@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.28.0
+
+Code-aware: expose the diagram linter to agents.
+
+- New tool **get_excalidraw_stale_links** (Language Model + MCP): lint a diagram for code links that
+  have drifted — `missing` (symbol gone) or `moved` (now in a different file). Agents can now check
+  whether an architecture diagram is still faithful to the code, not just humans via the ⟳ badge.
+
 ## 3.27.0
 
 Code-aware: edge metadata + declared-vs-detected check (Phase 2 P2.10).

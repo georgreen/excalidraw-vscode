@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.27.0",
+    "version": "3.28.0",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -70,6 +70,7 @@
         "onLanguageModelTool:expand_element_relations",
         "onLanguageModelTool:get_edge_relation",
         "onLanguageModelTool:set_edge_relation",
+        "onLanguageModelTool:get_excalidraw_stale_links",
         "onStartupFinished"
     ],
     "repository": {
@@ -1664,6 +1665,30 @@
                     "required": [
                         "arrowId"
                     ]
+                }
+            },
+            {
+                "name": "get_excalidraw_stale_links",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "code"
+                ],
+                "toolReferenceName": "getExcalidrawStaleLinks",
+                "displayName": "Get Excalidraw Stale Links",
+                "userDescription": "Lint a diagram for links that drifted from the code.",
+                "modelDescription": "Diagram linter: list the diagram's code links that have drifted from the source \u2014 'missing' (the symbol no longer exists) or 'moved' (it now lives in a different file, given as newFile). Use this to check whether an architecture diagram is still faithful to the code. Returns { staleCount, total, stale: [{ id, symbol, reason, newFile? }] }.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(warning)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        }
+                    }
                 }
             }
         ],

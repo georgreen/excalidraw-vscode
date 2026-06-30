@@ -9,6 +9,7 @@ import {
   hoverMarkdown,
   navigateToLink,
   symbolMetrics,
+  staleLinks,
   symbolInformationToCodeLink,
 } from "./router";
 
@@ -161,6 +162,22 @@ export async function linkedDiagnostics(
   const links = await fetchLinks(path);
   const badges = await diagnosticsForLinks(links);
   return { files: Object.keys(badges).length, badges };
+}
+
+/** Diagram linter: list links that have drifted from the code (missing/moved). */
+export async function staleLinkReport(
+  path?: string
+): Promise<Record<string, unknown>> {
+  const links = await fetchLinks(path);
+  const stale = await staleLinks(links);
+  const byId = new Map(links.map((l) => [l.id, l.codeLink.symbol]));
+  const items = Object.entries(stale).map(([id, s]) => ({
+    id,
+    symbol: byId.get(id),
+    reason: s.reason,
+    newFile: s.newFile,
+  }));
+  return { staleCount: items.length, total: links.length, stale: items };
 }
 
 /** Generate a diagram from a symbol's call/type hierarchy and place it, pre-linked. */
@@ -367,6 +384,15 @@ class GetLinkedDiagnosticsTool implements vscode.LanguageModelTool<PathInput> {
   }
 }
 
+class GetStaleLinksTool implements vscode.LanguageModelTool<PathInput> {
+  async invoke(options: vscode.LanguageModelToolInvocationOptions<PathInput>) {
+    return jsonResult({
+      ok: true,
+      ...(await staleLinkReport(options.input.path)),
+    });
+  }
+}
+
 interface GenerateInput {
   path?: string;
   symbol: string;
@@ -471,6 +497,10 @@ export function registerCodeIntelTools(context: vscode.ExtensionContext) {
     vscode.lm.registerTool(
       "get_linked_diagnostics",
       new GetLinkedDiagnosticsTool()
+    ),
+    vscode.lm.registerTool(
+      "get_excalidraw_stale_links",
+      new GetStaleLinksTool()
     ),
     vscode.lm.registerTool(
       "generate_diagram_from_symbol",

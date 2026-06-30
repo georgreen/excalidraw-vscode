@@ -433,3 +433,11 @@ code shows Y" warning. New tool `set_edge_relation {arrowId, kind}` (LM + MCP) t
 Host+webview tsc, lint, 15 tests, dual webpack clean; shipped 3.27.0. **All of Phase 2 (P2.1–P2.10)
 implemented.** Remaining Phase 2: validations P2.V1 (gen unit test), P2.V3 (rename→stale), P2.V4
 (edge click → site) — plus the pending visual checks. Edge tools need a reload to validate over MCP.
+
+### 2026-06-30 — get_excalidraw_stale_links agent tool (3.28.0)
+
+Exposed the P2.5 diagram-linter to agents: `staleLinkReport(path)` (agentTools) wraps `router.staleLinks`
+over the diagram's links → { staleCount, total, stale:[{id,symbol,reason,newFile?}] }. Registered as LM
+tool `get_excalidraw_stale_links` + MCP tool + activation event. Now all code-aware capabilities except
+pure editor-UI affordances (hover panel, badges, CodeLens, click-to-peek) are agent-accessible. Host
+tsc + lint + 15 tests + webpack clean; shipped 3.28.0. Code-aware MCP tools now: 10.

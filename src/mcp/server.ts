@@ -15,6 +15,7 @@ import {
   hoverForElement,
   navigateElement,
   linkedDiagnostics,
+  staleLinkReport,
   generateDiagramFromSymbol,
   expandElementRelations,
   edgeRelation,
@@ -602,6 +603,16 @@ export function createMcpServer(version: string): McpServer {
       inputSchema: { path: PATH },
     },
     async ({ path }) => result({ ok: true, ...(await linkedDiagnostics(path)) })
+  );
+
+  server.registerTool(
+    "get_excalidraw_stale_links",
+    {
+      description:
+        "Diagram linter: list the diagram's code links that have drifted from the source — 'missing' (the symbol no longer exists) or 'moved' (it now lives in a different file, given as newFile). Use this to check whether an architecture diagram is still faithful to the code. Returns { staleCount, total, stale: [{ id, symbol, reason, newFile? }] }.",
+      inputSchema: { path: PATH },
+    },
+    async ({ path }) => result({ ok: true, ...(await staleLinkReport(path)) })
   );
 
   server.registerTool(
