@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { canvasCommand } from "../canvasTools";
 import { generateGraph, expandRelations, RelationKind } from "./generate";
+import { resolveEdgeRelation } from "./edges";
 import {
   CodeLink,
   bestWorkspaceSymbol,
@@ -231,6 +232,35 @@ export async function expandElementRelations(input: {
   };
 }
 
+/** Resolve the concrete code relationship behind an arrow between two linked nodes. */
+export async function edgeRelation(
+  path: string | undefined,
+  arrowId: string
+): Promise<Record<string, unknown>> {
+  const ends = (await canvasCommand(path, "getEdgeEndpoints", { arrowId })) as {
+    from?: CodeLink | null;
+    to?: CodeLink | null;
+    bound?: boolean;
+  };
+  if (!ends?.from || !ends?.to) {
+    return {
+      arrowId,
+      bound: false,
+      note: "This arrow's endpoints are not both linked to code symbols.",
+    };
+  }
+  const rel = await resolveEdgeRelation(ends.from, ends.to);
+  return {
+    arrowId,
+    from: ends.from.symbol,
+    to: ends.to.symbol,
+    kind: rel.kind,
+    verified: rel.verified,
+    sites: rel.sites,
+    note: rel.note,
+  };
+}
+
 // ---- Language Model tools --------------------------------------------------
 
 function jsonResult(data: unknown): vscode.LanguageModelToolResult {
@@ -378,6 +408,18 @@ class ExpandRelationsTool implements vscode.LanguageModelTool<ExpandInput> {
   }
 }
 
+interface EdgeInput {
+  path?: string;
+  arrowId: string;
+}
+
+class GetEdgeRelationTool implements vscode.LanguageModelTool<EdgeInput> {
+  async invoke(options: vscode.LanguageModelToolInvocationOptions<EdgeInput>) {
+    const { path, arrowId } = options.input;
+    return jsonResult({ ok: true, ...(await edgeRelation(path, arrowId)) });
+  }
+}
+
 export function registerCodeIntelTools(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.lm.registerTool("link_excalidraw_to_symbol", new LinkToSymbolTool()),
@@ -401,6 +443,7 @@ export function registerCodeIntelTools(context: vscode.ExtensionContext) {
     vscode.lm.registerTool(
       "expand_element_relations",
       new ExpandRelationsTool()
-    )
+    ),
+    vscode.lm.registerTool("get_edge_relation", new GetEdgeRelationTool())
   );
 }

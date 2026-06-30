@@ -14,6 +14,20 @@ interface CodeInfo {
   metrics?: { references?: number; implementations?: number };
 }
 
+interface EdgeInfo {
+  arrowId: string;
+  from: any;
+  to: any;
+  fromSymbol: string;
+  toSymbol: string;
+  anchor: { left: number; top: number };
+  loading: boolean;
+  kind?: string;
+  verified?: boolean;
+  count?: number;
+  note?: string;
+}
+
 type DiagBadge = {
   errors: number;
   warnings: number;
@@ -107,6 +121,7 @@ export function CodeIntelOverlay(props: {
 }) {
   const { api, registerPointer } = props;
   const [info, setInfo] = useState<CodeInfo | undefined>();
+  const [edge, setEdge] = useState<EdgeInfo | undefined>();
   const [badges, setBadges] = useState<Record<string, DiagBadge>>({});
   const [stale, setStale] = useState<Record<string, { reason: string; newFile?: string }>>({});
   // Bumped on canvas change so the diagnostic badge layer re-anchors.
@@ -115,6 +130,7 @@ export function CodeIntelOverlay(props: {
   const hoveredId = useRef<string | null>(null);
   const selectedId = useRef<string | null>(null);
   const shownId = useRef<string | null>(null);
+  const edgeArrowRef = useRef<string | null>(null);
   const apiRef = useRef(api);
   apiRef.current = api;
   const badgesRef = useRef(badges);
@@ -245,15 +261,61 @@ export function CodeIntelOverlay(props: {
         (id) => (appState.selectedElementIds as any)[id]
       );
       let pinned: string | null = null;
+      let edgeArrowId: string | null = null;
       if (sel.length === 1) {
         const el: any = elements.find((e) => e.id === sel[0]);
         if (el?.customData?.codeLink) {
           pinned = sel[0];
+        } else if (el?.type === "arrow") {
+          edgeArrowId = sel[0];
         }
       }
       if (selectedId.current !== pinned) {
         selectedId.current = pinned;
         reconcile();
+      }
+      // A selected arrow whose endpoints are both linked = a code relationship.
+      if (edgeArrowRef.current !== edgeArrowId) {
+        edgeArrowRef.current = edgeArrowId;
+        if (!edgeArrowId) {
+          setEdge(undefined);
+        } else {
+          const arrow: any = elements.find((e) => e.id === edgeArrowId);
+          const startId = arrow?.startBinding?.elementId;
+          const endId = arrow?.endBinding?.elementId;
+          const startEl: any = elements.find((e) => e.id === startId);
+          const endEl: any = elements.find((e) => e.id === endId);
+          const from = startEl?.customData?.codeLink;
+          const to = endEl?.customData?.codeLink;
+          if (from && to) {
+            const anchor = computeAnchor(arrow, appState);
+            setEdge({
+              arrowId: edgeArrowId,
+              from,
+              to,
+              fromSymbol: from.symbol,
+              toSymbol: to.symbol,
+              anchor,
+              loading: true,
+            });
+            intel("edge", { from, to }).then((rel: any) => {
+              setEdge((cur) =>
+                cur && cur.arrowId === edgeArrowId
+                  ? {
+                      ...cur,
+                      loading: false,
+                      kind: rel?.kind,
+                      verified: rel?.verified,
+                      count: rel?.sites?.length ?? 0,
+                      note: rel?.note,
+                    }
+                  : cur
+              );
+            });
+          } else {
+            setEdge(undefined);
+          }
+        }
       }
       // Keep the panel anchored to its element as the canvas scrolls/zooms/moves.
       const shown = shownId.current;
@@ -263,6 +325,16 @@ export function CodeIntelOverlay(props: {
           const anchor = computeAnchor(el, appState);
           setInfo((cur) =>
             cur && cur.elementId === shown ? { ...cur, anchor } : cur
+          );
+        }
+      }
+      // Keep the edge panel anchored to its arrow.
+      if (edgeArrowRef.current) {
+        const arrow: any = elements.find((e) => e.id === edgeArrowRef.current);
+        if (arrow) {
+          const anchor = computeAnchor(arrow, appState);
+          setEdge((cur) =>
+            cur && cur.arrowId === edgeArrowRef.current ? { ...cur, anchor } : cur
           );
         }
       }
@@ -441,6 +513,47 @@ export function CodeIntelOverlay(props: {
                   )}
                 </div>
               )}
+          </div>
+        </div>
+      )}
+      {edge && (
+        <div
+          className="code-intel-overlay code-edge-overlay"
+          style={{ left: edge.anchor.left, top: edge.anchor.top }}
+        >
+          <div className="code-intel-header">
+            <span className="code-intel-symbol">
+              {edge.fromSymbol} → {edge.toSymbol}
+            </span>
+            {!edge.loading && edge.kind && edge.kind !== "none" && (
+              <button
+                className="code-intel-goto"
+                onClick={() =>
+                  intel("navigateEdge", { from: edge.from, to: edge.to })
+                }
+              >
+                Go to relationship
+              </button>
+            )}
+          </div>
+          <div className="code-intel-body">
+            {edge.loading ? (
+              <span className="code-intel-muted">Resolving relationship…</span>
+            ) : edge.kind && edge.kind !== "none" ? (
+              <div className="code-edge-summary">
+                <span className="code-edge-kind">{edge.kind}</span>
+                <span className="code-edge-verified">✓ verified</span>
+                {typeof edge.count === "number" && edge.count > 0 && (
+                  <span className="code-edge-count">
+                    {edge.count} site{edge.count === 1 ? "" : "s"}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <span className="code-intel-muted">
+                {edge.note || "No concrete relationship found (conceptual)."}
+              </span>
+            )}
           </div>
         </div>
       )}

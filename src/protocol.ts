@@ -43,7 +43,8 @@ export type CommandAction =
   | "getCodeLinks"
   | "getElementLabels"
   | "placeGeneratedGraph"
-  | "expandFromElement";
+  | "expandFromElement"
+  | "getEdgeEndpoints";
 
 export interface CommandRequest {
   type: "command";
@@ -74,6 +75,7 @@ export const READ_ONLY_ACTIONS: ReadonlyArray<CommandAction> = [
   "panCanvas",
   "getCodeLinks",
   "getElementLabels",
+  "getEdgeEndpoints",
 ];
 
 export function isMutatingAction(action: CommandAction): boolean {

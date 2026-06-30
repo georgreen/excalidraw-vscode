@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.25.1",
+    "version": "3.26.0",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -68,6 +68,7 @@
         "onLanguageModelTool:get_linked_diagnostics",
         "onLanguageModelTool:generate_diagram_from_symbol",
         "onLanguageModelTool:expand_element_relations",
+        "onLanguageModelTool:get_edge_relation",
         "onStartupFinished"
     ],
     "repository": {
@@ -1595,6 +1596,37 @@
                     "required": [
                         "id",
                         "kind"
+                    ]
+                }
+            },
+            {
+                "name": "get_edge_relation",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "code"
+                ],
+                "toolReferenceName": "getEdgeRelation",
+                "displayName": "Get Edge Relation",
+                "userDescription": "Resolve the code relationship behind a diagram arrow.",
+                "modelDescription": "Resolve the concrete code relationship behind an arrow between two linked diagram nodes. 'arrowId' is the arrow element id. Derives the (A,B) symbols from the arrow's bound endpoints and probes the language servers for inheritance, calls, or references \u2014 returning the relationship 'kind' (inherits/calls/references/none), whether it is 'verified', and the concrete code 'sites' where A actually uses B. If no concrete relationship exists, the arrow is conceptual or transitive (a diagram-linter signal).",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(arrow-right)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "arrowId": {
+                            "type": "string",
+                            "description": "The arrow element id (from get_excalidraw_scene)."
+                        }
+                    },
+                    "required": [
+                        "arrowId"
                     ]
                 }
             }

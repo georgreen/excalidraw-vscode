@@ -399,6 +399,27 @@ async function runAction(
       };
     }
 
+    case "getEdgeEndpoints": {
+      const arrowId = params.arrowId as string;
+      const all = api.getSceneElements() as any[];
+      const arrow = all.find((e) => e.id === arrowId);
+      if (!arrow || arrow.type !== "arrow") {
+        throw new Error(`Element "${arrowId}" is not an arrow.`);
+      }
+      const startId = arrow.startBinding?.elementId;
+      const endId = arrow.endBinding?.elementId;
+      const startEl = all.find((e) => e.id === startId);
+      const endEl = all.find((e) => e.id === endId);
+      const from = startEl?.customData?.codeLink;
+      const to = endEl?.customData?.codeLink;
+      return {
+        arrowId,
+        from: from || null,
+        to: to || null,
+        bound: !!(from && to),
+      };
+    }
+
     case "addElements": {
       const skeleton = params.elements;
       if (!Array.isArray(skeleton)) {

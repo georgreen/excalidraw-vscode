@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.26.0
+
+Code-aware: edge / relationship intelligence (Phase 2 P2.7–P2.9).
+
+- **Arrows are now relationships.** Select an arrow between two linked nodes and the panel shows the
+  derived relationship — **inherits / calls / references** — with a verified badge and the number of
+  concrete code sites. **"Go to relationship"** jumps to the actual site (or peeks when there are
+  several).
+- **Diagram linter for edges**: if no concrete inheritance/call/reference backs the arrow, it's
+  reported as **conceptual or transitive** instead of failing silently.
+- New tool **get_edge_relation** (Language Model + MCP): resolve the relationship behind an arrow by id.
+
 ## 3.25.1
 
 Code-aware: the stale badge (⟳) is now actionable.

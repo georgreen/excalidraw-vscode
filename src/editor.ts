@@ -16,6 +16,7 @@ import {
   staleLinks,
   CodeLink,
 } from "./codeintel/router";
+import { resolveEdgeRelation, navigateEdge } from "./codeintel/edges";
 
 function randomId(): string {
   const g = globalThis as { crypto?: { randomUUID?: () => string } };
@@ -448,9 +449,30 @@ export class ExcalidrawEditor {
       elementId?: string;
       reason?: "missing" | "moved";
       newFile?: string;
+      from?: CodeLink;
+      to?: CodeLink;
     };
   }) {
     try {
+      // Edge ops carry two endpoint links instead of a single codeLink.
+      if (msg.op === "edge" || msg.op === "navigateEdge") {
+        const from = msg.params?.from;
+        const to = msg.params?.to;
+        if (!from || !to) {
+          throw new Error("Edge op requires 'from' and 'to' code links");
+        }
+        const data =
+          msg.op === "edge"
+            ? await resolveEdgeRelation(from, to)
+            : await navigateEdge(from, to);
+        this.webview.postMessage({
+          type: "intel-result",
+          id: msg.id,
+          ok: true,
+          data,
+        });
+        return;
+      }
       const link = msg.params?.codeLink as CodeLink | undefined;
       let data: unknown;
       if (!link) {

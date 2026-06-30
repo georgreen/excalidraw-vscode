@@ -409,3 +409,17 @@ newFile}; host `fixStaleLink` shows — for "moved": "Update link" (setCodeLink 
 Dismiss; for "missing": "Open last-known file" / "Remove link" (setCodeLink null) / Dismiss. Cursor
 changed to pointer; tooltip updated to "click to fix". Host+webview tsc, lint, 15 tests, webpack clean;
 shipped 3.25.1.
+
+### 2026-06-30 — Edge intelligence P2.7–P2.9 (3.26.0)
+
+`src/codeintel/edges.ts`: `resolveEdgeRelation(from,to)` resolves both endpoints, then probes (most
+specific first) — **inherits** (prepareTypeHierarchy + provideSupertypes, when both are class/interface),
+**calls** (prepareCallHierarchy + provideOutgoingCalls, matched by `to.name`, using `fromRanges` = the
+call sites inside A), then **references** (executeReferenceProvider on B filtered to A's enclosing
+DocumentSymbol range). Returns {kind, verified, sites, anchor, note}. `navigateEdge` opens a single
+site or `editor.action.showReferences` peek for many; if none, shows the "conceptual/transitive"
+message (P2.9 diagram linter). Host intel ops `edge` (summary) + `navigateEdge`; webview detects a
+selected **arrow**, derives (A,B) from its bound endpoints' codeLinks, shows an edge panel (kind +
+verified + site count + "Go to relationship"). Agent/MCP tool `get_edge_relation {arrowId}` via new
+read-only webview action `getEdgeEndpoints`. Host+webview tsc, lint, 15 tests, dual webpack clean;
+shipped 3.26.0. P2.10 (arrow.customData.relation metadata) still pending.

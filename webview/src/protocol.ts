@@ -41,7 +41,8 @@ export type CommandAction =
   | "getCodeLinks"
   | "getElementLabels"
   | "placeGeneratedGraph"
-  | "expandFromElement";
+  | "expandFromElement"
+  | "getEdgeEndpoints";
 
 export interface CommandRequest {
   type: "command";

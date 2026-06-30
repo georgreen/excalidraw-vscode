@@ -111,6 +111,22 @@ kbd {
 .code-intel-metric:hover {
   text-decoration: underline;
 }
+.code-edge-summary {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.code-edge-kind {
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--vscode-symbolIcon-functionForeground, #c5c5ff);
+}
+.code-edge-verified {
+  color: var(--vscode-testing-iconPassed, #73c991);
+}
+.code-edge-count {
+  opacity: 0.8;
+}
 
 /* Persistent diagnostic badge layer over the canvas */
 .code-diag-layer {

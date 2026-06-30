@@ -135,14 +135,14 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
 - [x] **P2.4** Insert **members with signatures** via expand kind `members` (`executeDocumentSymbolProvider`; signatures via member detail + code-aware hover).
 - [x] **P2.5** **Link freshness**: re-check on `onDidSaveTextDocument` / `onDidRenameFiles`; surface drift as a non-destructive stale badge ("diagram linter": missing / moved).
 - [x] **P2.6** **Reverse index + CodeLens**: scan `customData.codeLink` across `.excalidraw` files; CodeLens "Appears in <diagram>" on symbols → open + focus element.
-- [ ] **P2.7** **Edge relationship resolution** (design §11): derive `(A,B)` symbols from an arrow's
+- [x] **P2.7** **Edge relationship resolution** (design §11): derive `(A,B)` symbols from an arrow's
   bound endpoints' `codeLink`s; probe most-specific kind first (inherits → calls → references) via
   `prepareCallHierarchy`/`provideOutgoingCalls` `fromRanges`, `executeReferenceProvider`,
   `prepareTypeHierarchy`. Add `intel` ops + router functions.
-- [ ] **P2.8** **Edge click → go to concrete site**: 1 site opens; many → `editor.action.showReferences`
+- [x] **P2.8** **Edge click → go to concrete site**: 1 site opens; many → `editor.action.showReferences`
   peek scoped to the A→B `fromRanges`. Hover/select arrow → relationship summary (kind + count +
   first-site preview) in the overlay panel.
-- [ ] **P2.9** **Diagram linter for edges**: when no concrete site is found, report
+- [x] **P2.9** **Diagram linter for edges**: when no concrete site is found, report
   "conceptual/transitive" (no silent fail); mark the arrow `unverified`; optional depth-capped,
   opt-in transitive path-finding (A → … → B) peeking the first hop.
 - [ ] **P2.10** **Edge metadata `arrow.customData.relation`** (`{kind?,verified?,lastChecked?,from?,to?}`):

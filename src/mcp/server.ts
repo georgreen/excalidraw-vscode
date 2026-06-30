@@ -17,6 +17,7 @@ import {
   linkedDiagnostics,
   generateDiagramFromSymbol,
   expandElementRelations,
+  edgeRelation,
 } from "../codeintel/agentTools";
 import { ExcalidrawEditor } from "../editor";
 
@@ -663,6 +664,17 @@ export function createMcpServer(version: string): McpServer {
           includeExternal,
         })),
       })
+  );
+
+  server.registerTool(
+    "get_edge_relation",
+    {
+      description:
+        "Resolve the concrete code relationship behind an arrow between two linked diagram nodes. 'arrowId' is the arrow element id. Derives the (A,B) symbols from the arrow's bound endpoints and probes the language servers for inheritance, calls, or references — returning the relationship 'kind', whether it is 'verified', and the concrete code 'sites' (where A actually uses B). If no concrete relationship exists, the arrow is reported as conceptual/transitive (a diagram-linter signal).",
+      inputSchema: { path: PATH, arrowId: z.string() },
+    },
+    async ({ path, arrowId }) =>
+      result({ ok: true, ...(await edgeRelation(path, arrowId)) })
   );
 
   return server;
