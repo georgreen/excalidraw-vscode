@@ -340,6 +340,49 @@ export async function symbolMetrics(link: CodeLink): Promise<SymbolMetrics> {
   return out;
 }
 
+/**
+ * Open VS Code's references/implementations **peek** for a link's symbol. Opens
+ * the declaration first so the peek has a host editor, then shows all locations.
+ * Returns how many were found.
+ */
+export async function showRelatedLocations(
+  link: CodeLink,
+  which: "references" | "implementations"
+): Promise<number> {
+  const r = await resolveSymbol(link);
+  if (!r) {
+    return 0;
+  }
+  const cmd =
+    which === "implementations"
+      ? "vscode.executeImplementationProvider"
+      : "vscode.executeReferenceProvider";
+  const raw =
+    (await vscode.commands.executeCommand<
+      (vscode.Location | vscode.LocationLink)[]
+    >(cmd, r.uri, r.position)) || [];
+  const locations: vscode.Location[] = raw.map((l) => {
+    const link = l as vscode.LocationLink;
+    if (link.targetUri) {
+      return new vscode.Location(
+        link.targetUri,
+        link.targetSelectionRange ?? link.targetRange
+      );
+    }
+    return l as vscode.Location;
+  });
+  // Reveal the declaration so the peek opens against a real text editor.
+  const doc = await vscode.workspace.openTextDocument(r.uri);
+  await vscode.window.showTextDocument(doc, { preview: true });
+  await vscode.commands.executeCommand(
+    "editor.action.showReferences",
+    r.uri,
+    r.position,
+    locations
+  );
+  return locations.length;
+}
+
 /** Resolve a workspace-relative (or absolute) file path to a URI. */
 async function fileToUri(file: string): Promise<vscode.Uri | undefined> {
   if (file.includes("://")) {

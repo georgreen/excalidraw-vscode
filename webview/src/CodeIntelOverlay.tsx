@@ -403,16 +403,30 @@ export function CodeIntelOverlay(props: {
                 info.metrics.implementations !== undefined) && (
                 <div className="code-intel-metrics">
                   {info.metrics.references !== undefined && (
-                    <span className="code-intel-metric">
+                    <button
+                      className="code-intel-metric"
+                      title="Show all references (peek)"
+                      onClick={() =>
+                        intel("showReferences", { codeLink: info.codeLink })
+                      }
+                    >
                       ↪ {info.metrics.references} reference
                       {info.metrics.references === 1 ? "" : "s"}
-                    </span>
+                    </button>
                   )}
                   {info.metrics.implementations !== undefined && (
-                    <span className="code-intel-metric">
+                    <button
+                      className="code-intel-metric"
+                      title="Show all implementations (peek)"
+                      onClick={() =>
+                        intel("showImplementations", {
+                          codeLink: info.codeLink,
+                        })
+                      }
+                    >
                       ⊂ {info.metrics.implementations} implementation
                       {info.metrics.implementations === 1 ? "" : "s"}
-                    </span>
+                    </button>
                   )}
                 </div>
               )}

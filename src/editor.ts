@@ -11,6 +11,7 @@ import {
   navigateToLink,
   navigateToDiagnostic,
   symbolMetrics,
+  showRelatedLocations,
   diagnosticsForLinks,
   staleLinks,
   CodeLink,
@@ -454,6 +455,10 @@ export class ExcalidrawEditor {
         data = await hoverMarkdown(link);
       } else if (msg.op === "metrics") {
         data = await symbolMetrics(link);
+      } else if (msg.op === "showReferences") {
+        data = await showRelatedLocations(link, "references");
+      } else if (msg.op === "showImplementations") {
+        data = await showRelatedLocations(link, "implementations");
       } else if (msg.op === "navigate") {
         const opened = await navigateToLink(link);
         if (!opened) {

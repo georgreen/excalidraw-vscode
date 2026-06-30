@@ -390,3 +390,13 @@ position, else by resolving the bare name via `executeDocumentSymbolProvider` fo
 element. A FileSystemWatcher on `**/*.excalidraw` invalidates the index + refreshes lenses on
 create/change/delete. Registered in activateShared (web + node). Host tsc + lint + 15 tests + dual
 webpack clean; shipped 3.24.0. Completes the P2.1–P2.6 generate/enrich block.
+
+### 2026-06-30 — Clickable reference/implementation counts → peek (3.25.0)
+
+User request: "can we view all references?" Made the P2.3 counts in the selection panel clickable.
+`router.showRelatedLocations(link, "references"|"implementations")` resolves the symbol, gathers
+locations via `executeReferenceProvider`/`executeImplementationProvider`, opens the declaration
+(showTextDocument so the peek has a host editor), then `editor.action.showReferences(uri, pos,
+locations)` opens VS Code's peek. New intel ops `showReferences`/`showImplementations`; the panel
+metric spans are now `<button>`s (link-styled). Host+webview tsc, lint, 15 tests, dual webpack clean;
+shipped 3.25.0.

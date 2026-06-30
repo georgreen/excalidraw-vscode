@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.25.0
+
+Code-aware: open all references/implementations from the panel.
+
+- The reference and implementation **counts in the selection panel are now clickable** — clicking
+  "N references" (or "M implementations") opens VS Code's **peek** view listing every location, so you
+  can jump straight from a diagram box to all of its usages.
+
 ## 3.24.0
 
 Code-aware: reverse index + CodeLens (Phase 2 P2.6).
