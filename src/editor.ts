@@ -12,6 +12,7 @@ import {
   navigateToDiagnostic,
   symbolMetrics,
   diagnosticsForLinks,
+  staleLinks,
   CodeLink,
 } from "./codeintel/router";
 
@@ -162,6 +163,7 @@ export class ExcalidrawEditor {
   private ready = false;
   private readyResolvers: Array<() => void> = [];
   private diagnosticsTimer: ReturnType<typeof setTimeout> | undefined;
+  private freshnessTimer: ReturnType<typeof setTimeout> | undefined;
 
   private docKey() {
     return this.document.uri.toString();
@@ -341,8 +343,18 @@ export class ExcalidrawEditor {
     const onDidChangeDiagnostics = vscode.languages.onDidChangeDiagnostics(() =>
       this.scheduleDiagnosticsRefresh()
     );
+    // Re-check link freshness ("diagram linter") when files are saved or renamed.
+    const onDidSave = vscode.workspace.onDidSaveTextDocument(() =>
+      this.scheduleFreshnessRefresh()
+    );
+    const onDidRename = vscode.workspace.onDidRenameFiles(() =>
+      this.scheduleFreshnessRefresh()
+    );
     this.whenReady()
-      .then(() => this.refreshDiagnostics())
+      .then(() => {
+        this.refreshDiagnostics();
+        this.refreshFreshness();
+      })
       .catch(() => {});
 
     return new vscode.Disposable(() => {
@@ -353,8 +365,13 @@ export class ExcalidrawEditor {
       onDidChangeLibrary.dispose();
       onDidChangeEmbedConfiguration.dispose();
       onDidChangeDiagnostics.dispose();
+      onDidSave.dispose();
+      onDidRename.dispose();
       if (this.diagnosticsTimer) {
         clearTimeout(this.diagnosticsTimer);
+      }
+      if (this.freshnessTimer) {
+        clearTimeout(this.freshnessTimer);
       }
       if (ExcalidrawEditor.registry.get(this.docKey()) === this) {
         ExcalidrawEditor.registry.delete(this.docKey());
@@ -494,6 +511,29 @@ export class ExcalidrawEditor {
       const links = res?.links || [];
       const badges = links.length ? await diagnosticsForLinks(links) : {};
       this.webview.postMessage({ type: "code-diagnostics", badges });
+    } catch {
+      // editor may have closed; ignore
+    }
+  }
+
+  private scheduleFreshnessRefresh() {
+    if (this.freshnessTimer) {
+      clearTimeout(this.freshnessTimer);
+    }
+    this.freshnessTimer = setTimeout(() => this.refreshFreshness(), 800);
+  }
+
+  private async refreshFreshness() {
+    if (!this.ready) {
+      return;
+    }
+    try {
+      const res = (await this.sendCommand("getCodeLinks")) as {
+        links?: { id: string; codeLink: CodeLink }[];
+      };
+      const links = res?.links || [];
+      const stale = links.length ? await staleLinks(links) : {};
+      this.webview.postMessage({ type: "code-stale", stale });
     } catch {
       // editor may have closed; ignore
     }

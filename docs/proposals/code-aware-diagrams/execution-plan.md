@@ -133,8 +133,7 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
 - [x] **P2.2** `generate_diagram_from_symbol` and `expand_element_relations` agent tools.
 - [x] **P2.3** Reference/implementation **count badges** (shown in the selection panel + agent hover; on-demand, not a persistent per-node badge).
 - [x] **P2.4** Insert **members with signatures** via expand kind `members` (`executeDocumentSymbolProvider`; signatures via member detail + code-aware hover).
-- [ ] **P2.5** **Link freshness**: `onDidRenameFiles` / `onDidChangeTextDocument` → update hints /
-  mark stale; surface `status:"stale"` as a badge ("diagram linter").
+- [x] **P2.5** **Link freshness**: re-check on `onDidSaveTextDocument` / `onDidRenameFiles`; surface drift as a non-destructive stale badge ("diagram linter": missing / moved).
 - [ ] **P2.6** **Reverse index + CodeLens**: scan `customData.codeLink` across `.excalidraw` files;
   CodeLens on symbols → open + focus element (desktop-first).
 - [ ] **P2.7** **Edge relationship resolution** (design §11): derive `(A,B)` symbols from an arrow's

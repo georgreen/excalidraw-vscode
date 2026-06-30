@@ -517,3 +517,41 @@ export async function diagnosticsForLinks(
   }
   return out;
 }
+
+export interface StaleLink {
+  reason: "missing" | "moved";
+  /** New file path when the symbol resolved somewhere other than the hint. */
+  newFile?: string;
+}
+
+/**
+ * Diagram linter: re-resolve each link from its symbol name (ignoring the cached
+ * uri/position) and report links whose symbol no longer exists ("missing") or
+ * now lives in a different file than the stored hint ("moved"). Used to flag a
+ * diagram that has drifted from the code.
+ */
+export async function staleLinks(
+  links: { id: string; codeLink: CodeLink }[]
+): Promise<Record<string, StaleLink>> {
+  const out: Record<string, StaleLink> = {};
+  for (const { id, codeLink } of links) {
+    // Re-resolve from the symbol (+ file hint), bypassing the position cache.
+    const fresh = await resolveSymbol({
+      ...codeLink,
+      uri: undefined,
+      selectionStart: undefined,
+    });
+    if (!fresh) {
+      out[id] = { reason: "missing" };
+      continue;
+    }
+    if (codeLink.file) {
+      const resolvedRel = vscode.workspace.asRelativePath(fresh.uri);
+      const hint = codeLink.file;
+      if (!resolvedRel.endsWith(hint) && !hint.endsWith(resolvedRel)) {
+        out[id] = { reason: "moved", newFile: resolvedRel };
+      }
+    }
+  }
+  return out;
+}

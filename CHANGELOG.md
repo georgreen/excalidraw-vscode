@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.23.0
+
+Code-aware: link freshness / diagram linter (Phase 2 P2.5).
+
+- The extension now re-checks linked symbols when files are **saved or renamed** and flags links that
+  have drifted from the code: a **stale badge** (⟳) appears on a node whose symbol no longer exists
+  ("missing") or now lives in a different file ("moved", with the new path in the tooltip). The check
+  is non-destructive (an overlay, like the diagnostics badges — it never edits the document).
+
 ## 3.22.0
 
 Code-aware: insert class/interface members (Phase 2 P2.4).

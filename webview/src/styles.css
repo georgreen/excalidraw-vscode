@@ -130,3 +130,16 @@ kbd {
   background: var(--vscode-editorWarning-foreground, #cca700);
   color: #1e1e1e;
 }
+.code-stale-badge {
+  position: absolute;
+  pointer-events: auto;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 8px;
+  background: var(--vscode-editorWarning-foreground, #cca700);
+  color: #1e1e1e;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  cursor: help;
+}

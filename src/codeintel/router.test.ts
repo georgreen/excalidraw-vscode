@@ -14,6 +14,7 @@ import {
   diagnosticsForLinks,
   hoverMarkdown,
   resolveSymbol,
+  staleLinks,
   symbolInformationToCodeLink,
 } from "./router";
 
@@ -177,5 +178,43 @@ describe("diagnosticsForLinks", () => {
     (languages.getDiagnostics as any).mockReturnValue([]);
     const out = await diagnosticsForLinks([cached("clean", "file:///ok.ts")]);
     expect(out.clean).toBeUndefined();
+  });
+});
+
+describe("staleLinks", () => {
+  it("flags a link as missing when the symbol no longer resolves", async () => {
+    // re-resolve bypasses cache → workspace symbol provider returns nothing.
+    (commands.executeCommand as any).mockResolvedValue([]);
+    const out = await staleLinks([
+      { id: "x", codeLink: { symbol: "Gone", file: "a.ts" } },
+    ]);
+    expect(out.x).toEqual({ reason: "missing" });
+  });
+
+  it("flags a link as moved when the symbol resolves in a different file", async () => {
+    (commands.executeCommand as any).mockResolvedValueOnce([
+      symInfo("Foo", SymbolKind.Class, "", "/repo/new/place.ts"),
+    ]);
+    (workspace.openTextDocument as any).mockResolvedValueOnce({
+      lineAt: () => ({ text: "export class Foo {" }),
+    });
+    const out = await staleLinks([
+      { id: "m", codeLink: { symbol: "Foo", file: "old/place.ts" } },
+    ]);
+    expect(out.m?.reason).toBe("moved");
+    expect(out.m?.newFile).toBe("repo/new/place.ts");
+  });
+
+  it("does not flag a link that still resolves in its file", async () => {
+    (commands.executeCommand as any).mockResolvedValueOnce([
+      symInfo("Foo", SymbolKind.Class, "", "/repo/keep.ts"),
+    ]);
+    (workspace.openTextDocument as any).mockResolvedValueOnce({
+      lineAt: () => ({ text: "export class Foo {" }),
+    });
+    const out = await staleLinks([
+      { id: "ok", codeLink: { symbol: "Foo", file: "keep.ts" } },
+    ]);
+    expect(out.ok).toBeUndefined();
   });
 });

@@ -108,6 +108,7 @@ export function CodeIntelOverlay(props: {
   const { api, registerPointer } = props;
   const [info, setInfo] = useState<CodeInfo | undefined>();
   const [badges, setBadges] = useState<Record<string, DiagBadge>>({});
+  const [stale, setStale] = useState<Record<string, { reason: string; newFile?: string }>>({});
   // Bumped on canvas change so the diagnostic badge layer re-anchors.
   const [, setTick] = useState(0);
 
@@ -118,6 +119,8 @@ export function CodeIntelOverlay(props: {
   apiRef.current = api;
   const badgesRef = useRef(badges);
   badgesRef.current = badges;
+  const staleRef = useRef(stale);
+  staleRef.current = stale;
   const lastBadgeTick = useRef(0);
 
   // Listen for intel results and diagnostics pushes from the host.
@@ -132,6 +135,8 @@ export function CodeIntelOverlay(props: {
         }
       } else if (m?.type === "code-diagnostics") {
         setBadges(m.badges || {});
+      } else if (m?.type === "code-stale") {
+        setStale(m.stale || {});
       }
     };
     window.addEventListener("message", listener);
@@ -261,8 +266,11 @@ export function CodeIntelOverlay(props: {
           );
         }
       }
-      // Re-anchor the diagnostic badge layer (throttled) when badges exist.
-      if (Object.keys(badgesRef.current).length > 0) {
+      // Re-anchor the badge layer (throttled) when badges or stale markers exist.
+      if (
+        Object.keys(badgesRef.current).length > 0 ||
+        Object.keys(staleRef.current).length > 0
+      ) {
         const now = Date.now();
         if (now - lastBadgeTick.current > 50) {
           lastBadgeTick.current = now;
@@ -278,7 +286,8 @@ export function CodeIntelOverlay(props: {
   const a = apiRef.current;
   let badgeLayer: ReactNode = null;
   const badgeIds = Object.keys(badges);
-  if (a && badgeIds.length > 0) {
+  const staleIds = Object.keys(stale);
+  if (a && (badgeIds.length > 0 || staleIds.length > 0)) {
     const appState: any = a.getAppState();
     const els = a.getSceneElements() as any[];
     const markers = badgeIds
@@ -311,7 +320,41 @@ export function CodeIntelOverlay(props: {
         );
       })
       .filter(Boolean);
-    badgeLayer = <div className="code-diag-layer">{markers}</div>;
+    // Stale markers ("diagram linter"): the linked symbol no longer resolves
+    // (missing) or moved files. Positioned at the element's top-left corner.
+    const staleMarkers = staleIds
+      .map((id) => {
+        const el = els.find((e) => e.id === id);
+        if (!el) {
+          return null;
+        }
+        const s = stale[id];
+        const appState2: any = a.getAppState();
+        const zoom = appState2?.zoom?.value ?? 1;
+        const left = (el.x + (appState2?.scrollX ?? 0)) * zoom - 6;
+        const top = (el.y + (appState2?.scrollY ?? 0)) * zoom - 8;
+        const title =
+          s.reason === "moved"
+            ? `Link may be stale: symbol now in ${s.newFile}`
+            : "Link is stale: symbol not found in the code";
+        return (
+          <div
+            key={`stale-${id}`}
+            className="code-stale-badge"
+            style={{ left, top }}
+            title={title}
+          >
+            ⟳
+          </div>
+        );
+      })
+      .filter(Boolean);
+    badgeLayer = (
+      <div className="code-diag-layer">
+        {markers}
+        {staleMarkers}
+      </div>
+    );
   }
 
   const badge = info ? badges[info.elementId] : undefined;

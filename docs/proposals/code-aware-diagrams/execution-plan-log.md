@@ -366,3 +366,15 @@ call-site `executeSignatureHelpProvider`. Host tsc + lint + 12 tests + webpack c
 - P2.4: `expand_element_relations(ExcalidrawEditor, members)` → added 8, connected 8; members are
   pre-linked with dotted symbols + correct kinds (`ExcalidrawEditor.constructor`,
   `.buildHtmlForWebview` method, `.document` property, …). ✓
+
+### 2026-06-30 — P2.5 link freshness / diagram linter (3.23.0)
+
+`router.staleLinks(links)` re-resolves each link from its symbol name (bypassing the uri/selectionStart
+cache) and reports `missing` (no longer resolves) or `moved` (resolves in a different file than the
+hint, with newFile). Editor subscribes to `onDidSaveTextDocument` + `onDidRenameFiles` (debounced
+800ms) and on webview-ready, pushing `code-stale`; the webview renders a non-destructive ⟳ stale badge
+(overlay, never edits the document) with a tooltip. 3 unit tests added (missing/moved/fresh) → 15 total.
+**Deviation:** uses `onDidSaveTextDocument` (not per-keystroke `onDidChangeTextDocument`) to avoid
+re-resolving on every edit; marks stale via overlay rather than writing `status:"stale"` into the file
+(non-destructive, mirrors diagnostics). Auto-updating moved hints (rewriting customData) deferred — the
+badge surfaces it without dirtying the doc. Host+webview tsc, lint, 15 tests, webpack clean; 3.23.0.
