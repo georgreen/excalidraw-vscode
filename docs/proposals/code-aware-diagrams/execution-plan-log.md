@@ -1,0 +1,443 @@
+# Execution Plan — Issues & Decisions Log
+
+> Running log of issues, deviations, and decisions encountered while executing
+> [`execution-plan.md`](./execution-plan.md). Append-only. Each entry is dated and references a task
+> ID. Status changes to tasks themselves live in `execution-plan.md` (checkboxes) and its Change Log;
+> this file captures the *why* and the *gotchas*.
+
+## Legend
+
+- **ISSUE** — a problem found (with resolution if any).
+- **DECISION** — a scoping/implementation choice and its rationale.
+- **DEVIATION** — implemented differently than the task text; explained and (if needed) reflected as a
+  follow-up task in `execution-plan.md`.
+
+---
+
+## 2026-06-26 — Phase 0 spike kickoff
+
+- **DECISION (P0 overall):** The spike proves the round-trip *LSP intelligence → webview* on one
+  linked element. To keep it robust and avoid Excalidraw-internal hit-testing, the spike surfaces
+  intelligence via **element selection** (select a linked box → info panel with hover + diagnostics +
+  "Go to code"), not raw mouse-hover. True mouse-hover trigger and always-on per-element badges are
+  Phase 1 refinements (P1.3, P1.4). See per-task notes below.
+
+### Per-task notes
+
+- **DEVIATION (P0.4 / P0.5):** Surfacing uses an **on-selection overlay panel** (bottom-right) rather
+  than mouse-hover and always-on per-element badges. Selecting a single linked element fetches its
+  hover and shows the symbol, live diagnostics count, hover Markdown, and a "Go to code" button. This
+  proves the full round-trip without Excalidraw-internal pointer hit-testing. True mouse-hover trigger
+  → Phase 1 **P1.3**; always-on per-element badge overlay layer → Phase 1 **P1.4**.
+- **DECISION (P0.4):** Hover Markdown is rendered as preformatted text (`<pre>`) in the spike, not a
+  full Markdown renderer. Rich Markdown rendering → P1.3.
+- **DECISION (P0.6):** Navigation goes through the new `intel`→`navigate` path (host runs
+  `executeDefinitionProvider`, falling back to the resolved symbol position) and opens the file —
+  rather than reusing the element `link`/`link-open` sentinel. Keeps the spike self-contained; the
+  link-sentinel route can be added in P1.5 for click-the-link-icon UX.
+- **ISSUE (P0.5 — diagnostics granularity):** `languages.getDiagnostics(uri)` is **per-file**, so the
+  badge reflects "the linked symbol's file has N errors/warnings," not errors within the symbol's
+  range. Acceptable for the spike; refine to range-overlap in P2 (alongside `status:"stale"`).
+- **ISSUE (P0.5 — perf):** `refreshDiagnostics` calls `getCodeLinks` then re-resolves each link via
+  `executeWorkspaceSymbolProvider` on every diagnostics change (debounced 400ms). Resolutions are
+  cached per refresh by URI but not across refreshes. Fine for spike scale; add a session-level
+  symbol→URI cache in P1 (X.3 performance).
+- **DECISION (architecture):** The code-intel router (`src/codeintel/router.ts`) uses only
+  `vscode.*` provider commands, so it lives in shared `src/` and works in **both** web and node hosts
+  (no dual-host split needed for Phase 0). Command registration is in `activateShared`.
+- **VALIDATION STATUS:** host `tsc`, webview `tsc`, host eslint, and webview build + dual webpack all
+  pass. Spike strings (`linkElementToSymbol`, `intel-result`, `code-intel-overlay`) confirmed present
+  in the built bundles. P0.V1–V4 (live hover/diagnostics/navigate behaviour) await a manual Extension
+  Host run against a real TS project.
+
+### 2026-06-27 — Test fixture added (supports P0.V)
+
+- Added `examples/code-aware-demo.excalidraw`: an architecture diagram of this codebase with **7
+  boxes pre-linked** (via `customData.codeLink`) to real exported symbols — `ExcalidrawEditorProvider`,
+  `ExcalidrawEditor`, `ExcalidrawDocument`, `registerCanvasTools`, `createMcpServer`, `resolveSymbol`,
+  `sceneToMermaid`. Links use `{ kind, symbol, file, status }` only (no machine-specific `uri`), so
+  they re-resolve portably via the workspace symbol provider. Use this to exercise P0.V1–V3
+  (select a box → hover/diagnostics; "Go to code" → navigate) without manual linking.
+
+### 2026-06-27 — Spike didn't work on first test; root-caused via Excalidraw event-model investigation
+
+**Investigation (real API, `@excalidraw/excalidraw` types):**
+- **Events Excalidraw emits:** `onChange(elements, appState, files)` (incl. selection),
+  `onPointerUpdate({pointer:{x,y,tool}, button})` (component prop only — pointer position in **scene
+  coords**, no element identity), `onPointerDown/onPointerUp` (tool + low-level `PointerDownState`),
+  `onScrollChange`, `onLinkOpen`, `onPaste`, `onDuplicate`, `onLibraryChange`, `onUserFollow`.
+- **There is NO element-hover event** and **no generic element-click event**. Imperative API
+  subscriptions: `onChange`, `onPointerDown`, `onPointerUp`, `onScrollChange`, `onUserFollow`
+  (note: `onPointerUpdate` is **not** on the imperative API — prop only).
+- **`customData` IS preserved** through `loadFromBlob`/restore (verified in prod bundle), so links
+  survive save/load.
+
+**ISSUE (root cause of "doesn't work"):** the overlay was invisible. `.excalidraw-wrapper` had no
+`position`, and the panel used `z-index: 5`, so it rendered **behind** Excalidraw's UI/canvas.
+**Fix:** `.excalidraw-wrapper { position: relative }` + overlay `z-index: 1000`.
+
+**DECISION (navigation — "go to code"):** the canvas owns its own pointer/keyboard handling and
+exposes no generic element-click; the supported hook is the element **`link`** + **`onLinkOpen`**.
+Fix: `setCodeLink` now also sets `element.link = "code: <symbol>"` (native link badge + hover
+tooltip + click), and `App.onLinkOpen` detects `customData.codeLink` and navigates via the intel
+router (`preventDefault` so Excalidraw doesn't try to open it as a URL). Updated
+`examples/code-aware-demo.excalidraw` so its 7 boxes carry the `link` too.
+
+**DECISION (hover):** since there's no hover event, hover is derived from the `onPointerUpdate`
+**prop** (forwarded from `App` via `registerPointer`) and hit-tested (scene coords) against linked
+elements. Selection still pins the panel.
+
+**Non-interference measures:** hover is **gated** to `activeTool === "selection"` and ignored while
+`button === "down"` (dragging); throttled to ~80ms; we do **not** set `handleKeyboardGlobally` and add
+**no** global keyboard/pointer handlers; navigation uses Excalidraw's own link affordance; the overlay
+is a small corner panel above the canvas. Read-only safety unchanged (link-setting is a mutating
+action subject to the existing guard).
+
+**Status:** rebuilt + reinstalled `pomdtr.excalidraw-editor@3.13.0`. Re-test pending (P0.V).
+
+### 2026-06-27 — "Go to code" did nothing (silent navigate failure)
+
+- **ISSUE:** clicking "Go to code" silently failed. `navigateToLink` returned `false` (or threw) with
+  no user feedback, so nothing happened. Likely causes: the project folder not open / language server
+  not yet indexed → `executeWorkspaceSymbolProvider` returns nothing → `resolveSymbol` undefined.
+- **FIX 1 (robustness):** `navigateToLink` now **falls back to opening the linked `file`** (resolved
+  against the workspace folders, then `findFiles`) when symbol resolution yields nothing. Since the
+  demo's links carry `file`, "Go to code" now opens the file even before the symbol index is ready.
+- **FIX 2 (visibility):** navigation failures now surface a `showWarningMessage` ("couldn't open code
+  for <symbol> — make sure the project folder is open and indexed"), and intel exceptions surface a
+  `showErrorMessage`. No more silent failures — re-tests will tell us exactly what's wrong.
+- Rebuilt + reinstalled. If it still doesn't open, the warning/error text now pinpoints the cause
+  (e.g. "no workspace folder open").
+
+### 2026-06-27 — P0.V1 feedback: panel mis-positioned + empty hover ("no docs")
+
+First successful hover test surfaced two issues (fixed in `3.13.1`):
+
+- **ISSUE (UX):** the overlay rendered as a **fixed bottom-right panel**, not next to the hovered
+  element. **FIX:** anchor the panel to the element. `CodeIntelOverlay` now computes on-screen
+  coordinates from the element's scene rect + `appState.{scrollX,scrollY,zoom}`
+  (`viewport = (scene + scroll) * zoom`), places the panel to the element's right (flips left near the
+  edge, clamps on-screen), and re-anchors on every `onChange` so it follows scroll/zoom/move. CSS
+  switched from `bottom/right` to inline `left/top`.
+- **ISSUE (root cause of "no docs"):** `resolveSymbol` returned `SymbolInformation.location.range.start`,
+  which sits on the **declaration keyword** (`export`/`class`/`function`), where
+  `executeHoverProvider` (and definition) return **nothing** → overlay showed "No hover info". The demo
+  nodes are classes/functions (not modules) but most carry no JSDoc, which masked it further.
+  **FIX:** `router.refineToIdentifier` scans the first few lines of the declaration range for the bare
+  name and moves the position **onto the identifier**, so hover/definition resolve. Also tidied hover
+  Markdown for plain rendering (`cleanHoverMd`: strip ``` fences, collapse blank runs).
+- **Build note:** `vsce package` re-runs the *production* webview build, which **EINVAL-flaked** writing
+  to `webview/dist/assets` on the external SSD volume. Worked around by building the **dev** bundles
+  (Node 22: `cd webview && npm run build`, then `npx webpack --mode development`) and packaging with
+  `vscode:prepublish` temporarily neutralized. Shipped `pomdtr.excalidraw-editor@3.13.1`.
+
+### 2026-06-27 — Demo enriched with class/function/method nodes
+
+Per feedback that the original 7 nodes were top-level/module-ish symbols with thin hover, added **6
+rich-symbol nodes** to `examples/code-aware-demo.excalidraw` (now 13 linked nodes) to exercise the
+hover/diagnostics intelligence with real signatures + docs:
+- **interfaces** (field types): `CodeLink`, `DiagnosticBadge` (`src/codeintel/router.ts`)
+- **typed functions** (params/returns + JSDoc): `navigateToLink`, `hoverMarkdown` (router.ts)
+- **methods** (dotted `Container.member`, resolved via `bareName` + `containerName` filter):
+  `ExcalidrawEditor.sendCommand`, `ExcalidrawEditor.setupWebview` (`src/editor.ts`)
+Color-coded (interface=purple, function=blue, method=orange). Data-only change — no rebuild; reopen
+the file (Shift+1 to zoom-to-fit, the new cluster sits below the original row).
+
+### 2026-06-27 — P1.6 agent tools (LM + MCP) implemented (3.14.0)
+
+Added 5 code-aware agent tools, registered both as VS Code Language Model tools
+(`src/codeintel/agentTools.ts` → `registerCodeIntelTools`, wired in `tools.ts`) and over the MCP
+bridge (`src/mcp/server.ts`), sharing one set of host ops:
+- `link_excalidraw_to_symbol` `{path?, ids?, symbol?, auto?}` — explicit-symbol or label-`auto` linking.
+- `get_excalidraw_code_links` `{path?}` — the element→symbol index.
+- `get_code_hover_for_element` `{path?, id}` — router.hoverMarkdown.
+- `navigate_to_element_code` `{path?, id}` — router.navigateToLink.
+- `get_linked_diagnostics` `{path?}` — router.diagnosticsForLinks.
+
+Supporting changes:
+- New read-only webview action **`getElementLabels`** (both `protocol.ts`, `webview/src/commands.ts`,
+  added to `READ_ONLY_ACTIONS`) so `auto` linking can match a shape's label to a workspace symbol.
+- Refactor: `symbolInformationToCodeLink` + `bestWorkspaceSymbol` exported from `router.ts` (now also
+  used by the link command); the codeLink `symbol` is stored dotted (`Container.member`) for methods.
+- `package.json`: 5 `languageModelTools` manifests (41 total); version → **3.14.0**.
+
+Build/validate: host `tsc` clean, webview `tsc` clean, `npm run lint` clean (after `--fix`), dual
+webpack OK (codeintel = 3 modules). Packaged + installed `pomdtr.excalidraw-editor@3.14.0`. Manual
+agent E2E (P1.V3) pending.
+
+### 2026-06-28 — P1.6 validated over the live MCP bridge (3.15.0)
+
+Exercised the agent tools directly against the running bridge (`http://127.0.0.1:39127/mcp`, no auth)
+via JSON-RPC `tools/call`:
+- **MCP transport / no-auth**: discovery file holds url/port only (no token); `/health` → `ok`;
+  `tools/list` returns **41 tools**, including all 5 code-aware tools. ✓
+- `get_excalidraw_code_links` → returned the live demo's **13 links** (classes/functions/methods/
+  interfaces). ✓
+- `get_linked_diagnostics` → `{files:0, badges:{}}` (no current errors). ✓ (valid empty result)
+- `get_code_hover_for_element` (rich_sc / rich_cl / intel) → `hover: null`. ✗ — root cause: the TS
+  **language server was dormant** in the reloaded window (only webview-only tools resolve without it;
+  hover/diagnostics/navigate all need `executeWorkspaceSymbolProvider`). Same "wake the server"
+  condition as Phase 0 — opening a `.ts` file in that window should restore hover. Re-confirm pending.
+
+Net: registration, transport, read, and diagnostics paths are validated end-to-end for agents; hover
+needs an active language server. P1.V3 partially validated.
+
+### 2026-06-28 — Robustness: cold-index symbol resolution (3.15.1)
+
+MCP E2E (above) showed hover/diagnostics return empty when the TS server is dormant (workspace symbol
+index cold). Confirmed by navigating first (opens the file → wakes the server) then hovering, which
+returned the full `ExcalidrawEditor.sendCommand` signature + JSDoc. Fix: `resolveSymbol` now falls
+back to `executeDocumentSymbolProvider` on the link's `file` when `executeWorkspaceSymbolProvider`
+yields nothing — opening the document activates the language server on demand. Committed (2b4a0b3),
+shipped 3.15.1. Cold-start re-validation pending a window reload.
+
+Commits this session: 3f18031 (Phase 0), 2d8c475 (P1.6 + MCP default/no-auth), 2b4a0b3 (cold-index fix).
+
+### 2026-06-28 — P1.V3 PASSED (cold) + symbol-name normalization (3.15.2)
+
+After reloading to 3.15.1, re-ran the agent tools over MCP on a **cold** TS server (no file pre-opened):
+- `get_code_hover_for_element` (resolveSymbol, and dotted `ExcalidrawEditor.sendCommand`) → full
+  signature + JSDoc. ✓ (cold-index fallback works)
+- `get_linked_diagnostics` → resolved files; reported `{doc: {errors:1, file:"src/document.ts"}}` (a live
+  in-editor error), badging the `ExcalidrawDocument` box. ✓
+- `link_excalidraw_to_symbol {ids:["intel"], symbol:"resolveSymbol"}` → linked, file resolved. ✓
+- `navigate_to_element_code` → `opened:true`. ✓
+So **P1.V3 passes** and **P1.5** (navigation) is validated.
+
+Minor bug found + fixed: linking stored `resolveSymbol()` (TS workspace symbols carry a call suffix).
+`cleanSymbolName` now strips `(…)`; exact-match filters use it too. Committed (7d158e4), shipped 3.15.2.
+
+Commit: 09e5f83 (validation log), 7d158e4 (symbol-name normalization).
+
+### 2026-06-28 — P1.3 + P1.4 diagnostics/hover polish (3.16.0)
+
+- **P1.4**: diagnostics are now a **persistent overlay layer** keyed by element id — a colored badge
+  on every linked element whose file has problems (red=error, amber=warning), anchored to the
+  element's corner and re-anchored on scroll/zoom/move (throttled). `diagnosticsForLinks` now also
+  returns the top diagnostic **messages** (with severity + line), shown as the badge tooltip.
+- **P1.3**: hover panel splits the signature (code block) from the prose docs (`splitHover`), with
+  explicit loading / "No hover info" states.
+Host + webview tsc clean; webview rebuilt (Node 22, slow/EINVAL-flaky on the SSD — retried) + dual
+webpack. Shipped 3.16.0. Tasks marked done (code-complete); **visual confirmation pending** a reload.
+
+### 2026-06-28 — Clickable diagnostic badges (3.16.1)
+
+Q: what should clicking a diagnostic badge do? Decision: **jump to the problem**. New router op
+`navigateToDiagnostic(link)` opens the linked file at its first diagnostic (errors before warnings)
+and selects that range; host `handleIntel` op `navigateDiagnostic`; the webview badge `onClick` looks
+up the element's codeLink and posts it (tooltip now hints "click to open the problem in code"). Falls
+back to opening the file when no diagnostics remain. Host + webview tsc + lint clean; shipped 3.16.1.
+
+### 2026-06-29 — P1.1 / P1.2 / P1.7 (3.17.0)
+
+- **P1.1** (schema): `setCodeLink` now validates a link carries a non-empty `symbol`, supports
+  **unlink** (`codeLink: null` removes `customData.codeLink` and only the extension's own `code:`
+  link, preserving a user-set URL). Agent tool `link_excalidraw_to_symbol` gains `unlink: true` (LM +
+  MCP manifests).
+- **P1.2** (auto-suggest): command **"Excalidraw: Auto-link Elements to Code Symbols"** —
+  `getElementLabels` → `bestWorkspaceSymbol` per label → multi-select confirmation → `setCodeLink`.
+  The opt-in human counterpart to the agent's `auto` mode.
+- **P1.7** (docs): README "Code-aware diagrams" section; CHANGELOG 3.16.0–3.17.0; QA changelog
+  section + checklist.
+Host + webview tsc + lint clean; built/installed 3.17.0. Phase 1 task list now complete (P1.1–P1.7);
+remaining Phase 1 items are validations P1.V1 (multi-language), P1.V2 (router unit tests), P1.V4
+(bundle/activation check).
+
+### 2026-06-29 — P1.V4 PASSED (+ activation-events fix, 3.17.1)
+
+Verified: all 5 code-aware LM tools present in the **web** bundle and (with the 5 MCP tools +
+`navigateToDiagnostic`) in the **node** bundle; `autoLinkElements` command bundled. **Bug found**: the
+5 code-aware LM tools had no `onLanguageModelTool:*` activation events (every canvas tool does), so
+invoking one might not activate the extension. Added them (3.17.1). P1.V4 done.
+
+Remaining Phase 1 validations: P1.V1 (multi-language — mechanism is language-agnostic; needs a
+non-TS project to confirm) and P1.V2 (router unit tests — **no test harness exists** in the repo; needs
+a decision on adding one).
+
+### 2026-06-29 — P1.V2 PASSED: router unit tests (Vitest)
+
+Added a lightweight test harness (no test infra existed): **Vitest** (`vitest@^1.6.1`, pinned to match
+the repo's `@types/node@18`) with a mocked `vscode` module (`src/test/vscode.mock.ts`, aliased via
+`vitest.config.ts`). `npm test` → `vitest run`. Tests in `src/codeintel/router.test.ts` (12, all green)
+cover `symbolInformationToCodeLink` (call-suffix stripping, dotted methods), `bestWorkspaceSymbol`
+(clean-name match, container preference), `resolveSymbol` (cached path, workspace+refine path,
+undefined), `hoverMarkdown`, and `diagnosticsForLinks` (counts, messages, per-file caching).
+`tsconfig.json` excludes `*.test.ts` / `src/test` / `vitest.config.ts` so `tsc`/webpack ignore them
+(the mock intentionally diverges from `@types/vscode`). Host tsc + lint + dual webpack still clean.
+Addresses P1.V2 and part of X.2.
+
+Remaining Phase 1: **P1.V1** (multi-language) — language-agnostic by design; needs a non-TS project
+(e.g. Python) to confirm. That leaves Phase 1 ready to close pending that one manual check.
+
+### 2026-06-29 — P2.1 generate-from-code (3.18.0)
+
+Engine `src/codeintel/generate.ts`: `generateGraph({symbol,file,mode,depth,maxNodes})` resolves the
+symbol, runs `prepareCallHierarchy`+`provideOutgoingCalls` (calls) or `prepareTypeHierarchy`+
+`provideSupertypes` (types), BFS with depth (1-5) + node caps, builds nodes (precise codeLink from each
+item's selectionRange) and edges, and ranks/rows them for layout. New webview action
+`placeGeneratedGraph` lays out node rectangles (kind-coloured, pre-linked) via
+`convertToExcalidrawElements`, then binds arrows by mapped ids. Exposed as
+`generate_diagram_from_symbol` (LM + MCP + activation event). Host+webview tsc, lint, 12 tests, dual
+webpack all clean; shipped 3.18.0. (Part of P2.2's `generate_diagram_from_symbol` landed here too;
+`expand_element_relations` still pending.) Live MCP validation pending a window reload.
+
+### 2026-06-30 — Multi-window MCP flaw found + fixed (3.19.0)
+
+While validating P2.1 over MCP, calls hit the wrong window: the bridge was owned by another VS Code
+window (workspace `reading-books`), because a **single global** `excalidraw.mcp.port` (39127) +
+**single global** discovery file (`~/.excalidraw-vscode/mcp.json`) meant one window won the port and
+clobbered discovery (last-writer-wins); other windows' bridges died silently on EADDRINUSE.
+
+Root cause is inherent in part: each window is a separate extension host and a bridge can only drive
+**its own** window's editors — one static CLI endpoint can't span windows. Fix (Option A):
+- **Per-workspace discovery dir** `~/.excalidraw-vscode/servers/<fnv(workspace)>.json` (no clobbering;
+  lists every live server). Legacy `mcp.json` kept as a convenience pointer.
+- **Port fallback**: preferred port in use → bind a free port (log it) instead of failing.
+- **Stale cleanup**: drop discovery files whose pid is dead, on startup.
+- Moved the user's port pin from **global** settings to this repo's `.vscode/settings.json`
+  (git-ignored); README + `mcp.port` description updated to recommend per-workspace pinning.
+Host tsc + lint + 12 tests + webpack clean; shipped 3.19.0. (P2.1 live validation still pending —
+needs the excalidraw window to own the bridge after reload.)
+
+### 2026-06-30 — P2.1 + multi-window fix validated over MCP (3.19.0)
+
+Multi-window discovery confirmed working: two live bridges, no clobbering — `reading-books` on a
+dynamic port (50204), `excalidraw-vscode` on its pinned 39127 (from workspace `.vscode/settings.json`),
+each with its own `servers/<key>.json`; `mcp.json` points at the excalidraw window. Validated against
+the **correct** window via the per-workspace discovery file.
+
+P2.1 generate (P2.V2): `generate_diagram_from_symbol` —
+- `ExcalidrawEditor` (calls, d2) → 2 nodes / 1 edge (class call-hierarchy is sparse).
+- `navigateToLink` (calls, d2, max 20) → 20 nodes / 25 edges (truncated), tracing real outgoing calls
+  (resolveSymbol, fileToUri, openTextDocument, showTextDocument, …). All nodes pre-linked to real files
+  (`get_excalidraw_code_links` → 22). Hover on a generated node returned the full signature + JSDoc —
+  **nodes are navigable immediately**. P2.V2 PASS.
+- Note (future polish): "calls" mode pulls in `node_modules`/TS-lib symbols (executeCommand, filter,
+  endsWith) — consider an option to exclude externals for cleaner graphs.
+The earlier "could not resolve" failures were purely the wrong-window routing (now fixed), not P2.1.
+
+### 2026-06-30 — P2.2 expand_element_relations + exclude-externals (3.20.0)
+
+- **expand_element_relations** `{id, kind}` (LM + MCP): grows the diagram from an existing linked
+  element by one hop. Kinds: `callees`/`callers` (call hierarchy in/out), `supertypes`/`subtypes`
+  (type hierarchy), `implementations` (executeImplementationProvider, names resolved via document
+  symbols). Host `expandRelations` (generate.ts) returns neighbours + edge direction; new webview
+  action `expandFromElement` places new nodes in an offset column, **reuses** existing nodes for
+  symbols already on the canvas (dedupe by uri/selectionStart or symbol+file), and connects arrows in
+  the correct direction.
+- **Exclude externals**: `isExternalUri` filters `node_modules` / TS-lib `.d.ts`; both `generateGraph`
+  and `expandRelations` default to project-only (`includeExternal:true` to include). Addresses the
+  earlier "calls" noise note.
+Host+webview tsc, lint, 12 tests, dual webpack clean; shipped 3.20.0. Live validation pending reload.
+
+### 2026-06-30 — P2.2 validated over MCP (3.20.0)
+
+- Exclude-externals: `generate_diagram_from_symbol(navigateToLink, calls, d1)` → 3 **project** nodes
+  (navigateToLink → resolveSymbol, fileToUri); the prior node_modules/TS-lib noise is gone.
+- Expand: `expand_element_relations(resolveSymbol, callers)` → **added 5, connected 6, reused 1**.
+  New callers = hoverMarkdown, navigateToDiagnostic, diagnosticsForLinks, generateGraph, expandRelations
+  (all real); navigateToLink was already on the canvas and was **reused, not duplicated**; direction
+  "in" (callers → resolveSymbol). P2.2 PASS.
+
+### 2026-06-30 — P2.3 reference/implementation counts (3.21.0)
+
+`router.symbolMetrics(link)` → `executeReferenceProvider` count (declaration occurrence excluded) and,
+for class/interface kinds, `executeImplementationProvider` count. New `metrics` intel op; the
+selection/hover panel shows "↪ N references · ⊂ M implementations". `get_code_hover_for_element` also
+returns the counts for agents. **Design deviation (logged):** implemented as an **on-demand panel line
++ agent field**, not a persistent badge on every node — a reference query per node would be expensive
+and noisy; on-demand keeps it cheap and clean. Host+webview tsc, lint, 12 tests, dual webpack clean;
+shipped 3.21.0.
+
+### 2026-06-30 — P2.4 members (3.22.0)
+
+Added `members` to expand kinds. `expandRelations` for `members` runs
+`executeDocumentSymbolProvider` on the source's file, finds the class/interface symbol at the source
+position (`findSymbolAtPosition`: prefer selectionRange, else deepest range), and inserts each child
+(method/field) as a pre-linked node (`Container.member` dotted symbol + containerName; label includes
+the symbol's `detail` signature when provided). Direction "out"; reuses the existing generic
+`expandFromElement` webview placement (no webview change). Note: "signature help" in the original task
+is delivered via the member `detail` + the existing code-aware hover (full signature), not the
+call-site `executeSignatureHelpProvider`. Host tsc + lint + 12 tests + webpack clean; shipped 3.22.0.
+
+### 2026-06-30 — P2.3 + P2.4 validated over MCP (3.21/3.22)
+
+- P2.3: `get_code_hover_for_element(ExcalidrawEditor)` → `references: 31, implementations: 2`. ✓
+- P2.4: `expand_element_relations(ExcalidrawEditor, members)` → added 8, connected 8; members are
+  pre-linked with dotted symbols + correct kinds (`ExcalidrawEditor.constructor`,
+  `.buildHtmlForWebview` method, `.document` property, …). ✓
+
+### 2026-06-30 — P2.5 link freshness / diagram linter (3.23.0)
+
+`router.staleLinks(links)` re-resolves each link from its symbol name (bypassing the uri/selectionStart
+cache) and reports `missing` (no longer resolves) or `moved` (resolves in a different file than the
+hint, with newFile). Editor subscribes to `onDidSaveTextDocument` + `onDidRenameFiles` (debounced
+800ms) and on webview-ready, pushing `code-stale`; the webview renders a non-destructive ⟳ stale badge
+(overlay, never edits the document) with a tooltip. 3 unit tests added (missing/moved/fresh) → 15 total.
+**Deviation:** uses `onDidSaveTextDocument` (not per-keystroke `onDidChangeTextDocument`) to avoid
+re-resolving on every edit; marks stale via overlay rather than writing `status:"stale"` into the file
+(non-destructive, mirrors diagnostics). Auto-updating moved hints (rewriting customData) deferred — the
+badge surfaces it without dirtying the doc. Host+webview tsc, lint, 15 tests, webpack clean; 3.23.0.
+
+### 2026-06-30 — P2.6 reverse index + CodeLens (3.24.0)
+
+`src/codeintel/codelens.ts`: `ReverseIndex` scans all `.excalidraw` files (findFiles, JSON parse) and
+collects `customData.codeLink` entries → {diagram, elementId, symbol, uri/line | file}. A
+`CodeLensProvider` ({scheme:file}) emits a lens at the symbol — by uri+line when the link has a cached
+position, else by resolving the bare name via `executeDocumentSymbolProvider` for file-hint links
+(covers the demo) — titled "Appears in <diagram>" / "in N diagrams". The lens command
+`excalidraw.focusElementInDiagram` opens the diagram editor, reveals it, and selects + scrolls to the
+element. A FileSystemWatcher on `**/*.excalidraw` invalidates the index + refreshes lenses on
+create/change/delete. Registered in activateShared (web + node). Host tsc + lint + 15 tests + dual
+webpack clean; shipped 3.24.0. Completes the P2.1–P2.6 generate/enrich block.
+
+### 2026-06-30 — Clickable reference/implementation counts → peek (3.25.0)
+
+User request: "can we view all references?" Made the P2.3 counts in the selection panel clickable.
+`router.showRelatedLocations(link, "references"|"implementations")` resolves the symbol, gathers
+locations via `executeReferenceProvider`/`executeImplementationProvider`, opens the declaration
+(showTextDocument so the peek has a host editor), then `editor.action.showReferences(uri, pos,
+locations)` opens VS Code's peek. New intel ops `showReferences`/`showImplementations`; the panel
+metric spans are now `<button>`s (link-styled). Host+webview tsc, lint, 15 tests, dual webpack clean;
+shipped 3.25.0.
+
+### 2026-06-30 — Stale badge made actionable (3.25.1)
+
+User asked what the yellow ⟳ badge does (it had `cursor:help` + tooltip only). Made it a one-click
+diagram-linter quick-fix: webview badge onClick → intel `fixStale` {codeLink, elementId, reason,
+newFile}; host `fixStaleLink` shows — for "moved": "Update link" (setCodeLink with the new file hint) /
+Dismiss; for "missing": "Open last-known file" / "Remove link" (setCodeLink null) / Dismiss. Cursor
+changed to pointer; tooltip updated to "click to fix". Host+webview tsc, lint, 15 tests, webpack clean;
+shipped 3.25.1.
+
+### 2026-06-30 — Edge intelligence P2.7–P2.9 (3.26.0)
+
+`src/codeintel/edges.ts`: `resolveEdgeRelation(from,to)` resolves both endpoints, then probes (most
+specific first) — **inherits** (prepareTypeHierarchy + provideSupertypes, when both are class/interface),
+**calls** (prepareCallHierarchy + provideOutgoingCalls, matched by `to.name`, using `fromRanges` = the
+call sites inside A), then **references** (executeReferenceProvider on B filtered to A's enclosing
+DocumentSymbol range). Returns {kind, verified, sites, anchor, note}. `navigateEdge` opens a single
+site or `editor.action.showReferences` peek for many; if none, shows the "conceptual/transitive"
+message (P2.9 diagram linter). Host intel ops `edge` (summary) + `navigateEdge`; webview detects a
+selected **arrow**, derives (A,B) from its bound endpoints' codeLinks, shows an edge panel (kind +
+verified + site count + "Go to relationship"). Agent/MCP tool `get_edge_relation {arrowId}` via new
+read-only webview action `getEdgeEndpoints`. Host+webview tsc, lint, 15 tests, dual webpack clean;
+shipped 3.26.0. P2.10 (arrow.customData.relation metadata) still pending.
+
+### 2026-06-30 — P2.10 edge metadata (3.27.0) — Phase 2 COMPLETE
+
+`arrow.customData.relation = {kind,...,lastChecked}` via new webview action `setEdgeRelation`
+(mutating) + read in `getEdgeEndpoints`. `edgeRelation` now returns `declaredKind` + `mismatch` (true
+when a declared kind differs from the detected relationship); the edge panel shows a "⚠ declared X but
+code shows Y" warning. New tool `set_edge_relation {arrowId, kind}` (LM + MCP) to declare/clear intent.
+Host+webview tsc, lint, 15 tests, dual webpack clean; shipped 3.27.0. **All of Phase 2 (P2.1–P2.10)
+implemented.** Remaining Phase 2: validations P2.V1 (gen unit test), P2.V3 (rename→stale), P2.V4
+(edge click → site) — plus the pending visual checks. Edge tools need a reload to validate over MCP.
+
+### 2026-06-30 — get_excalidraw_stale_links agent tool (3.28.0)
+
+Exposed the P2.5 diagram-linter to agents: `staleLinkReport(path)` (agentTools) wraps `router.staleLinks`
+over the diagram's links → { staleCount, total, stale:[{id,symbol,reason,newFile?}] }. Registered as LM
+tool `get_excalidraw_stale_links` + MCP tool + activation event. Now all code-aware capabilities except
+pure editor-UI affordances (hover panel, badges, CodeLens, click-to-peek) are agent-accessible. Host
+tsc + lint + 15 tests + webpack clean; shipped 3.28.0. Code-aware MCP tools now: 10.

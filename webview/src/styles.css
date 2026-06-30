@@ -6,6 +6,7 @@ body {
 .excalidraw-wrapper {
   width: 100vw;
   height: 100vh;
+  position: relative;
 }
 
 kbd {
@@ -14,4 +15,160 @@ kbd {
 
 .excalidraw .App-menu_top .Stack_vertical .Island {
   min-width: 204px;
+}
+
+/* Code-aware diagram: selection info overlay (spike) */
+.code-intel-overlay {
+  position: absolute;
+  width: 360px;
+  max-width: 360px;
+  max-height: 320px;
+  overflow: auto;
+  z-index: 1000;
+  background: var(--vscode-editorHoverWidget-background, #252526);
+  color: var(--vscode-editorHoverWidget-foreground, #ccc);
+  border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  font-size: 12px;
+  pointer-events: auto;
+}
+.code-intel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+}
+.code-intel-symbol {
+  font-weight: 600;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-intel-diag {
+  display: flex;
+  gap: 6px;
+}
+.code-intel-err {
+  color: var(--vscode-errorForeground, #f48771);
+}
+.code-intel-warn {
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+.code-intel-goto {
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+}
+.code-intel-body {
+  margin: 0;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+.code-intel-sig {
+  margin: 0 0 6px 0;
+  padding: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-editor-font-family, monospace);
+  color: var(--vscode-symbolIcon-functionForeground, #c5c5ff);
+}
+.code-intel-doc {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-font-family, sans-serif);
+  opacity: 0.92;
+}
+.code-intel-muted {
+  opacity: 0.6;
+  font-style: italic;
+}
+.code-intel-metrics {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+  font-family: var(--vscode-font-family, sans-serif);
+  opacity: 0.85;
+}
+.code-intel-metric {
+  white-space: nowrap;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--vscode-textLink-foreground, #4daafc);
+}
+.code-intel-metric:hover {
+  text-decoration: underline;
+}
+.code-edge-summary {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.code-edge-kind {
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--vscode-symbolIcon-functionForeground, #c5c5ff);
+}
+.code-edge-verified {
+  color: var(--vscode-testing-iconPassed, #73c991);
+}
+.code-edge-count {
+  opacity: 0.8;
+}
+.code-edge-mismatch {
+  margin-top: 6px;
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+/* Persistent diagnostic badge layer over the canvas */
+.code-diag-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+}
+.code-diag-badge {
+  position: absolute;
+  pointer-events: auto;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 8px;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.code-diag-error {
+  background: var(--vscode-errorForeground, #f14c4c);
+}
+.code-diag-warning {
+  background: var(--vscode-editorWarning-foreground, #cca700);
+  color: #1e1e1e;
+}
+.code-stale-badge {
+  position: absolute;
+  pointer-events: auto;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 8px;
+  background: var(--vscode-editorWarning-foreground, #cca700);
+  color: #1e1e1e;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
 }

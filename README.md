@@ -105,6 +105,107 @@ By default, the extension will use the [Visual Studio Code Display Language](htt
 }
 ```
 
+## AI Agent Tools
+
+This extension exposes a set of [Language Model Tools](https://code.visualstudio.com/api/extension-guides/ai/tools) so that VS Code's Copilot **agent mode** can create and draw on Excalidraw diagrams for you. In agent mode you can reference a tool with `#` (e.g. `#addExcalidrawElements`) or simply describe what you want and let the agent pick the tools.
+
+### File tools
+
+- **create_excalidraw_diagram** — create a new `.excalidraw[.json/.svg/.png]` file (optionally seeded with scene JSON) and open it.
+- **open_excalidraw_diagram** — open an existing diagram in the editor.
+- **list_excalidraw_diagrams** — list diagrams in the workspace.
+- **save_excalidraw_diagram** — save the current drawing to disk (persist your agent's edits).
+
+### Canvas tools
+
+These drive a **live** Excalidraw editor. Most take an optional `path`; when omitted, the currently active Excalidraw editor is used. If the target file is not open, it is opened automatically.
+
+- **Read**: `get_excalidraw_scene`, `get_excalidraw_selection`, `get_excalidraw_appstate`, `get_excalidraw_mermaid`, `export_excalidraw_image`.
+- **Author**: `add_excalidraw_elements`, `connect_excalidraw_elements`, `update_excalidraw_elements`, `move_excalidraw_elements`, `delete_excalidraw_elements`, `set_excalidraw_scene`, `clear_excalidraw_canvas`.
+- **Style & layout**: `style_excalidraw_elements`, `select_excalidraw_elements`, `reorder_excalidraw_elements` (z-order), `lock_excalidraw_elements`, `duplicate_excalidraw_elements`, `flip_excalidraw_elements`, `set_excalidraw_link`, `set_excalidraw_arrowheads`, `scroll_to_excalidraw_content`, `pan_excalidraw_canvas`, `group_excalidraw_elements`, `ungroup_excalidraw_elements`, `frame_excalidraw_elements`, `align_excalidraw_elements` (align + distribute).
+- **Images & library**: `add_excalidraw_image`, `add_excalidraw_library_items`, `get_excalidraw_library`, `place_excalidraw_library_item`.
+- **Convenience**: `draw_from_mermaid` (convert a Mermaid definition into Excalidraw elements), `set_excalidraw_tool` (switch tool/mode, e.g. `hand` for panning).
+
+> Note: the canvas tools require an Excalidraw editor to be open (the extension opens one automatically when you pass a `path`). They are not available on read-only documents (e.g. git diff views).
+
+Example prompts:
+
+- "Create a diagram at `docs/architecture.excalidraw` with a `Client`, `API`, and `Database` box connected by arrows."
+- "Read the active diagram, then align the three boxes on their left edge."
+- "Summarize the current diagram — read it as Mermaid first (`#getExcalidrawMermaid`)."
+- "Draw this as a flowchart: `#drawFromMermaid` `graph TD; A-->B; B-->C`."
+
+### Code-aware diagrams (link boxes to code)
+
+You can link diagram elements to **real code symbols** (classes, functions, methods, interfaces) and
+get language intelligence on the canvas — hover docs, live error/warning badges, and jump-to-code —
+by reusing the project's running language servers (no separate language server of our own).
+
+- **Link** an element: select it and run **"Excalidraw: Link Element to Code Symbol"**, or run
+  **"Excalidraw: Auto-link Elements to Code Symbols"** to match labelled shapes to symbols in bulk.
+- **Hover** a linked box → its signature + docs, anchored next to the element.
+- **Diagnostics**: linked elements whose file has problems show a coloured badge (red = error, amber =
+  warning); the messages are in the tooltip, and **clicking the badge jumps to the problem**.
+- **Navigate**: the element gets a `code:` link badge — click it (or "Go to code") to open the symbol.
+
+Agent tools (also available over MCP):
+
+- **link_excalidraw_to_symbol** — link `ids` to a `symbol`, `auto`-match by label, or `unlink`.
+- **get_excalidraw_code_links** — the diagram's element→symbol index.
+- **get_code_hover_for_element** — language-server signature/docs for a linked element.
+- **navigate_to_element_code** — open the code behind a linked element.
+- **get_linked_diagnostics** — error/warning counts for the files behind linked elements.
+
+Example prompts:
+
+- "Link the selected box to the `OrderService` class."
+- "Auto-link the boxes in this diagram to code, then tell me which linked files have errors."
+
+### Controlling Excalidraw from external agents (MCP)
+
+The extension can also expose these tools over the **Model Context Protocol (MCP)** so that *external* agents — GitHub Copilot CLI, Claude Desktop, Cursor, Zed, etc. — can control Excalidraw, not just VS Code's built-in agent.
+
+When **enabled by default**, the **desktop** extension host starts a localhost-only MCP HTTP server on activation (it shuts down with VS Code). It binds to `127.0.0.1` with **no authentication** — it is meant for a single trusted machine. This feature is desktop-only; the web build keeps the in-editor tools.
+
+1. It is on by default. To disable it, set:
+
+   ```json
+   {
+     "excalidraw.mcp.enabled": false
+   }
+   ```
+
+2. On startup the extension writes a discovery file. Each running window writes its own file under
+   `~/.excalidraw-vscode/servers/<workspace>.json` (and a convenience pointer at
+   `~/.excalidraw-vscode/mcp.json`):
+
+   ```json
+   {
+     "url": "http://127.0.0.1:<port>/mcp",
+     "port": 12345,
+     "workspace": "/path/to/your/project"
+   }
+   ```
+
+3. Point your MCP client at that URL. For example, an `http` MCP server entry:
+
+   ```json
+   {
+     "servers": {
+       "excalidraw": {
+         "type": "http",
+         "url": "http://127.0.0.1:<port>/mcp"
+       }
+     }
+   }
+   ```
+
+The same canvas/file tools listed above are available over MCP. The server binds to `127.0.0.1` only (no token required). Progress and the active URL are logged to the **Excalidraw MCP** output channel.
+
+**Multiple windows.** Each VS Code window runs its own bridge in its own extension host (a bridge can only drive editors in *its* window). By default each picks a **free port** and writes its own `servers/<workspace>.json`, so windows never clobber each other — read that directory to see every running server. If you want a **stable URL** for one project (e.g. for a Copilot CLI config), set `excalidraw.mcp.port` in **that project's** `.vscode/settings.json` (not in global settings — a single global port can only be claimed by one window; others fall back to a free port).
+
+VS Code's own Copilot can also auto-discover this server (via the MCP server definition provider) on VS Code versions that support it — no manual configuration needed.
+
 ## Contact
 
 Only bug reports / feature requests specifics to the VS Code integration should go to the extension repository. If it is not the case, please report your issue directly to the Excalidraw project.

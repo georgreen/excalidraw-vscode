@@ -5,6 +5,26 @@ import { Base64 } from "js-base64";
 import { ExcalidrawDocument } from "./document";
 import { languageMap } from "./lang";
 import { showEditor } from "./commands";
+import { CommandAction, isMutatingAction } from "./protocol";
+import {
+  hoverMarkdown,
+  navigateToLink,
+  navigateToDiagnostic,
+  symbolMetrics,
+  showRelatedLocations,
+  diagnosticsForLinks,
+  staleLinks,
+  CodeLink,
+} from "./codeintel/router";
+import { resolveEdgeRelation, navigateEdge } from "./codeintel/edges";
+
+function randomId(): string {
+  const g = globalThis as { crypto?: { randomUUID?: () => string } };
+  if (g.crypto?.randomUUID) {
+    return g.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 export class ExcalidrawEditorProvider
   implements vscode.CustomEditorProvider<ExcalidrawDocument>
@@ -56,11 +76,7 @@ export class ExcalidrawEditorProvider
     document: ExcalidrawDocument,
     webviewPanel: vscode.WebviewPanel
   ) {
-    const editor = new ExcalidrawEditor(
-      document,
-      webviewPanel.webview,
-      this.context
-    );
+    const editor = new ExcalidrawEditor(document, webviewPanel, this.context);
     const editorDisposable = await editor.setupWebview();
 
     webviewPanel.onDidDispose(() => {
@@ -136,11 +152,39 @@ export class ExcalidrawEditor {
   private static onLibraryImport = ExcalidrawEditor._onLibraryImport.event;
   private textDecoder = new TextDecoder();
 
+  // Registry of live editors, keyed by document URI, used to route agent
+  // commands to the right webview (and to auto-open one when needed).
+  private static registry = new Map<string, ExcalidrawEditor>();
+  private static registrationWaiters = new Map<string, Array<() => void>>();
+
+  // Pending command-result resolvers, keyed by request id.
+  private pending = new Map<
+    string,
+    { resolve: (data: unknown) => void; reject: (err: Error) => void }
+  >();
+  private ready = false;
+  private readyResolvers: Array<() => void> = [];
+  private diagnosticsTimer: ReturnType<typeof setTimeout> | undefined;
+  private freshnessTimer: ReturnType<typeof setTimeout> | undefined;
+
+  private docKey() {
+    return this.document.uri.toString();
+  }
+
+  readonly webview: vscode.Webview;
+
   constructor(
     readonly document: ExcalidrawDocument,
-    readonly webview: vscode.Webview,
+    readonly panel: vscode.WebviewPanel,
     readonly context: vscode.ExtensionContext
-  ) {}
+  ) {
+    this.webview = panel.webview;
+  }
+
+  /** Bring this editor's webview to the foreground so its DOM/rAF is active. */
+  public reveal() {
+    this.panel.reveal(undefined, true);
+  }
 
   isViewOnly() {
     return (
@@ -178,6 +222,29 @@ export class ExcalidrawEditor {
           case "info":
             vscode.window.showInformationMessage(msg.content);
             break;
+          case "ready":
+            this.ready = true;
+            this.readyResolvers.forEach((resolve) => resolve());
+            this.readyResolvers = [];
+            break;
+          case "command-result": {
+            const entry = this.pending.get(msg.id);
+            if (entry) {
+              this.pending.delete(msg.id);
+              if (msg.ok) {
+                entry.resolve(msg.data);
+              } else {
+                entry.reject(
+                  new Error(msg.error || "Excalidraw command failed")
+                );
+              }
+            }
+            break;
+          }
+          case "intel": {
+            await this.handleIntel(msg);
+            break;
+          }
         }
       },
       this
@@ -266,6 +333,32 @@ export class ExcalidrawEditor {
       name: this.extractName(this.document.uri),
     });
 
+    ExcalidrawEditor.registry.set(this.docKey(), this);
+    const waiters = ExcalidrawEditor.registrationWaiters.get(this.docKey());
+    if (waiters) {
+      ExcalidrawEditor.registrationWaiters.delete(this.docKey());
+      waiters.forEach((resolve) => resolve());
+    }
+
+    // Push code diagnostics to the webview when diagnostics change anywhere
+    // (debounced). Also refresh once the webview is ready.
+    const onDidChangeDiagnostics = vscode.languages.onDidChangeDiagnostics(() =>
+      this.scheduleDiagnosticsRefresh()
+    );
+    // Re-check link freshness ("diagram linter") when files are saved or renamed.
+    const onDidSave = vscode.workspace.onDidSaveTextDocument(() =>
+      this.scheduleFreshnessRefresh()
+    );
+    const onDidRename = vscode.workspace.onDidRenameFiles(() =>
+      this.scheduleFreshnessRefresh()
+    );
+    this.whenReady()
+      .then(() => {
+        this.refreshDiagnostics();
+        this.refreshFreshness();
+      })
+      .catch(() => {});
+
     return new vscode.Disposable(() => {
       onDidReceiveMessage.dispose();
       onDidChangeThemeConfiguration.dispose();
@@ -273,7 +366,317 @@ export class ExcalidrawEditor {
       onDidChangeLibraryConfiguration.dispose();
       onDidChangeLibrary.dispose();
       onDidChangeEmbedConfiguration.dispose();
+      onDidChangeDiagnostics.dispose();
+      onDidSave.dispose();
+      onDidRename.dispose();
+      if (this.diagnosticsTimer) {
+        clearTimeout(this.diagnosticsTimer);
+      }
+      if (this.freshnessTimer) {
+        clearTimeout(this.freshnessTimer);
+      }
+      if (ExcalidrawEditor.registry.get(this.docKey()) === this) {
+        ExcalidrawEditor.registry.delete(this.docKey());
+      }
+      this.ready = false;
+      this.pending.forEach((entry) =>
+        entry.reject(new Error("Excalidraw editor was closed"))
+      );
+      this.pending.clear();
     });
+  }
+
+  private whenReady(timeoutMs = 10000): Promise<void> {
+    if (this.ready) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () =>
+          reject(new Error("Excalidraw webview did not become ready in time")),
+        timeoutMs
+      );
+      this.readyResolvers.push(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Send a command to this editor's webview and await its result. Rejects on
+   * timeout, on a webview-side failure, or when the action is not allowed on a
+   * read-only document.
+   */
+  public async sendCommand(
+    action: CommandAction,
+    params?: unknown,
+    timeoutMs = 15000
+  ): Promise<unknown> {
+    if (isMutatingAction(action) && this.isViewOnly()) {
+      throw new Error(
+        "This Excalidraw document is read-only and cannot be modified."
+      );
+    }
+    await this.whenReady();
+    const id = randomId();
+    return new Promise<unknown>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`Excalidraw command "${action}" timed out`));
+      }, timeoutMs);
+      this.pending.set(id, {
+        resolve: (data) => {
+          clearTimeout(timer);
+          resolve(data);
+        },
+        reject: (err) => {
+          clearTimeout(timer);
+          reject(err);
+        },
+      });
+      this.webview.postMessage({ type: "command", id, action, params });
+    });
+  }
+
+  // --- Code intelligence (webview <-> host) ---
+
+  private async handleIntel(msg: {
+    id: string;
+    op: string;
+    params?: {
+      codeLink?: CodeLink;
+      elementId?: string;
+      reason?: "missing" | "moved";
+      newFile?: string;
+      from?: CodeLink;
+      to?: CodeLink;
+    };
+  }) {
+    try {
+      // Edge ops carry two endpoint links instead of a single codeLink.
+      if (msg.op === "edge" || msg.op === "navigateEdge") {
+        const from = msg.params?.from;
+        const to = msg.params?.to;
+        if (!from || !to) {
+          throw new Error("Edge op requires 'from' and 'to' code links");
+        }
+        const data =
+          msg.op === "edge"
+            ? await resolveEdgeRelation(from, to)
+            : await navigateEdge(from, to);
+        this.webview.postMessage({
+          type: "intel-result",
+          id: msg.id,
+          ok: true,
+          data,
+        });
+        return;
+      }
+      const link = msg.params?.codeLink as CodeLink | undefined;
+      let data: unknown;
+      if (!link) {
+        throw new Error("Missing codeLink");
+      }
+      if (msg.op === "hover") {
+        data = await hoverMarkdown(link);
+      } else if (msg.op === "metrics") {
+        data = await symbolMetrics(link);
+      } else if (msg.op === "showReferences") {
+        data = await showRelatedLocations(link, "references");
+      } else if (msg.op === "showImplementations") {
+        data = await showRelatedLocations(link, "implementations");
+      } else if (msg.op === "fixStale") {
+        data = await this.fixStaleLink(link, msg.params);
+      } else if (msg.op === "navigate") {
+        const opened = await navigateToLink(link);
+        if (!opened) {
+          vscode.window.showWarningMessage(
+            `Excalidraw: couldn't open code for "${link.symbol}". ` +
+              `Make sure the project folder is open and indexed by a language server.`
+          );
+        }
+        data = opened;
+      } else if (msg.op === "navigateDiagnostic") {
+        const opened = await navigateToDiagnostic(link);
+        if (!opened) {
+          vscode.window.showWarningMessage(
+            `Excalidraw: couldn't open the file for "${link.symbol}".`
+          );
+        }
+        data = opened;
+      } else {
+        throw new Error(`Unknown intel op "${msg.op}"`);
+      }
+      this.webview.postMessage({
+        type: "intel-result",
+        id: msg.id,
+        ok: true,
+        data,
+      });
+    } catch (e) {
+      vscode.window.showErrorMessage(
+        `Excalidraw code intel error: ${(e as Error).message || String(e)}`
+      );
+      this.webview.postMessage({
+        type: "intel-result",
+        id: msg.id,
+        ok: false,
+        error: (e as Error).message || String(e),
+      });
+    }
+  }
+
+  /**
+   * Offer a quick fix for a stale code link (the "diagram linter"): for a moved
+   * symbol, update the link's file to the new location; for a missing symbol,
+   * offer to open the last-known file or remove the link.
+   */
+  private async fixStaleLink(
+    link: CodeLink,
+    params?: {
+      elementId?: string;
+      reason?: "missing" | "moved";
+      newFile?: string;
+    }
+  ): Promise<{ action: string }> {
+    const id = params?.elementId;
+    if (params?.reason === "moved" && params.newFile && id) {
+      const choice = await vscode.window.showInformationMessage(
+        `"${link.symbol}" moved to ${params.newFile}. Update the diagram link?`,
+        "Update link",
+        "Dismiss"
+      );
+      if (choice === "Update link") {
+        await this.sendCommand("setCodeLink", {
+          ids: [id],
+          codeLink: {
+            ...link,
+            file: params.newFile,
+            uri: undefined,
+            selectionStart: undefined,
+            status: "linked",
+          },
+        });
+        this.refreshFreshness();
+        return { action: "updated" };
+      }
+      return { action: "dismissed" };
+    }
+
+    // missing
+    const choice = await vscode.window.showWarningMessage(
+      `"${link.symbol}" was not found in the code. The diagram may be out of date.`,
+      "Open last-known file",
+      "Remove link",
+      "Dismiss"
+    );
+    if (choice === "Open last-known file" && link.file) {
+      try {
+        const uri = vscode.Uri.joinPath(
+          vscode.workspace.workspaceFolders?.[0]?.uri ?? vscode.Uri.file("/"),
+          link.file
+        );
+        await vscode.window.showTextDocument(uri, { preview: true });
+      } catch {
+        vscode.window.showErrorMessage(`Could not open ${link.file}.`);
+      }
+      return { action: "opened" };
+    }
+    if (choice === "Remove link" && id) {
+      await this.sendCommand("setCodeLink", { ids: [id], codeLink: null });
+      this.refreshFreshness();
+      return { action: "removed" };
+    }
+    return { action: "dismissed" };
+  }
+
+  private scheduleDiagnosticsRefresh() {
+    if (this.diagnosticsTimer) {
+      clearTimeout(this.diagnosticsTimer);
+    }
+    this.diagnosticsTimer = setTimeout(() => this.refreshDiagnostics(), 400);
+  }
+
+  private async refreshDiagnostics() {
+    if (!this.ready) {
+      return;
+    }
+    try {
+      const res = (await this.sendCommand("getCodeLinks")) as {
+        links?: { id: string; codeLink: CodeLink }[];
+      };
+      const links = res?.links || [];
+      const badges = links.length ? await diagnosticsForLinks(links) : {};
+      this.webview.postMessage({ type: "code-diagnostics", badges });
+    } catch {
+      // editor may have closed; ignore
+    }
+  }
+
+  private scheduleFreshnessRefresh() {
+    if (this.freshnessTimer) {
+      clearTimeout(this.freshnessTimer);
+    }
+    this.freshnessTimer = setTimeout(() => this.refreshFreshness(), 800);
+  }
+
+  private async refreshFreshness() {
+    if (!this.ready) {
+      return;
+    }
+    try {
+      const res = (await this.sendCommand("getCodeLinks")) as {
+        links?: { id: string; codeLink: CodeLink }[];
+      };
+      const links = res?.links || [];
+      const stale = links.length ? await staleLinks(links) : {};
+      this.webview.postMessage({ type: "code-stale", stale });
+    } catch {
+      // editor may have closed; ignore
+    }
+  }
+
+  /** Returns a live editor for the given document URI, if one is open. */
+  public static getLiveEditor(uri: vscode.Uri): ExcalidrawEditor | undefined {
+    return ExcalidrawEditor.registry.get(uri.toString());
+  }
+
+  /**
+   * Resolves a live editor for the given document, opening the file in the
+   * Excalidraw custom editor first if none is currently open.
+   */
+  public static async resolveEditor(
+    uri: vscode.Uri,
+    timeoutMs = 15000
+  ): Promise<ExcalidrawEditor> {
+    const existing = ExcalidrawEditor.registry.get(uri.toString());
+    if (existing) {
+      return existing;
+    }
+
+    const key = uri.toString();
+    const registered = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("Timed out opening the Excalidraw editor")),
+        timeoutMs
+      );
+      const waiters = ExcalidrawEditor.registrationWaiters.get(key) || [];
+      waiters.push(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+      ExcalidrawEditor.registrationWaiters.set(key, waiters);
+    });
+
+    await showEditor(uri);
+    await registered;
+
+    const editor = ExcalidrawEditor.registry.get(key);
+    if (!editor) {
+      throw new Error("Failed to resolve the Excalidraw editor after opening");
+    }
+    return editor;
   }
 
   private getImageParams() {
@@ -320,6 +723,11 @@ export class ExcalidrawEditor {
 
   public static importLibrary(library: string) {
     this._onLibraryImport.fire({ library });
+  }
+
+  /** Load the current library content (workspace file or global storage). */
+  public async getLibrary(): Promise<string | undefined> {
+    return this.loadLibrary(await this.getLibraryUri());
   }
 
   public async loadLibrary(libraryUri?: vscode.Uri) {

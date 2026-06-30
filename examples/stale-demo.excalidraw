@@ -1,0 +1,172 @@
+{
+ "type": "excalidraw",
+ "version": 2,
+ "source": "https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor",
+ "elements": [
+  {
+   "angle": 0,
+   "strokeColor": "#1e1e1e",
+   "backgroundColor": "#b2f2bb",
+   "fillStyle": "solid",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "roughness": 1,
+   "opacity": 100,
+   "groupIds": [],
+   "frameId": null,
+   "roundness": {
+    "type": 3
+   },
+   "seed": 1103527783,
+   "version": 2,
+   "versionNonce": 1948464406,
+   "isDeleted": false,
+   "boundElements": [
+    {
+     "type": "text",
+     "id": "valid_t"
+    }
+   ],
+   "updated": 1782550982859,
+   "link": "code: sceneToMermaid",
+   "locked": false,
+   "id": "valid",
+   "type": "rectangle",
+   "x": 120,
+   "y": 120,
+   "width": 240,
+   "height": 80,
+   "customData": {
+    "codeLink": {
+     "kind": "function",
+     "symbol": "sceneToMermaid",
+     "file": "webview/src/sceneToMermaid.ts",
+     "status": "linked"
+    }
+   },
+   "index": "a0"
+  },
+  {
+   "angle": 0,
+   "strokeColor": "#1e1e1e",
+   "backgroundColor": "transparent",
+   "fillStyle": "solid",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "roughness": 1,
+   "opacity": 100,
+   "groupIds": [],
+   "frameId": null,
+   "roundness": null,
+   "seed": 333417792,
+   "version": 2,
+   "versionNonce": 984010570,
+   "isDeleted": false,
+   "boundElements": [],
+   "updated": 1782550982859,
+   "link": null,
+   "locked": false,
+   "id": "valid_t",
+   "type": "text",
+   "x": 132,
+   "y": 145,
+   "width": 216,
+   "height": 24,
+   "text": "sceneToMermaid (valid)",
+   "fontSize": 14,
+   "fontFamily": 3,
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "valid",
+   "originalText": "sceneToMermaid (valid)",
+   "lineHeight": 1.25,
+   "autoResize": true,
+   "index": "a1"
+  },
+  {
+   "angle": 0,
+   "strokeColor": "#1e1e1e",
+   "backgroundColor": "#ffc9c9",
+   "fillStyle": "solid",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "roughness": 1,
+   "opacity": 100,
+   "groupIds": [],
+   "frameId": null,
+   "roundness": {
+    "type": 3
+   },
+   "seed": 1103528205,
+   "version": 2,
+   "versionNonce": 1948464406,
+   "isDeleted": false,
+   "boundElements": [
+    {
+     "type": "text",
+     "id": "broken_t"
+    }
+   ],
+   "updated": 1782550982859,
+   "link": "code: ThisSymbolDoesNotExistXYZ",
+   "locked": false,
+   "id": "broken",
+   "type": "rectangle",
+   "x": 420,
+   "y": 120,
+   "width": 240,
+   "height": 80,
+   "customData": {
+    "codeLink": {
+     "kind": "function",
+     "symbol": "ThisSymbolDoesNotExistXYZ",
+     "file": "src/editor.ts",
+     "status": "linked"
+    }
+   },
+   "index": "a0"
+  },
+  {
+   "angle": 0,
+   "strokeColor": "#1e1e1e",
+   "backgroundColor": "transparent",
+   "fillStyle": "solid",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "roughness": 1,
+   "opacity": 100,
+   "groupIds": [],
+   "frameId": null,
+   "roundness": null,
+   "seed": 333417792,
+   "version": 2,
+   "versionNonce": 984010570,
+   "isDeleted": false,
+   "boundElements": [],
+   "updated": 1782550982859,
+   "link": null,
+   "locked": false,
+   "id": "broken_t",
+   "type": "text",
+   "x": 432,
+   "y": 145,
+   "width": 216,
+   "height": 24,
+   "text": "MissingThing (stale)",
+   "fontSize": 14,
+   "fontFamily": 3,
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "broken",
+   "originalText": "MissingThing (stale)",
+   "lineHeight": 1.25,
+   "autoResize": true,
+   "index": "a1"
+  }
+ ],
+ "appState": {
+  "viewBackgroundColor": "#ffffff",
+  "gridSize": null
+ },
+ "files": {}
+}

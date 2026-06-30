@@ -17,6 +17,8 @@ import {
   LibraryItems,
 } from "@excalidraw/excalidraw/types";
 import { vscode } from "./vscode.ts";
+import { handleCommand } from "./commands.ts";
+import { CodeIntelOverlay } from "./CodeIntelOverlay.tsx";
 
 function detectTheme() {
   switch (document.body.className) {
@@ -83,12 +85,19 @@ export default function App(props: {
     appState: Partial<AppState>,
     files?: BinaryFiles
   ) => void;
+  serialize?: (
+    elements: readonly any[],
+    appState: Partial<AppState>,
+    files: BinaryFiles
+  ) => Promise<Uint8Array>;
+  cancelPendingChange?: () => void;
 }) {
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI>();
   const libraryItemsRef = useRef(props.libraryItems);
   const { theme, setThemeConfig } = useTheme(props.theme);
   const [imageParams, setImageParams] = useState(props.imageParams);
   const [langCode, setLangCode] = useState(props.langCode);
+  const pointerCbRef = useRef<((payload: any) => void) | undefined>(undefined);
 
   useEffect(() => {
     if (!props.dirty) {
@@ -136,6 +145,47 @@ export default function App(props: {
           }
           case "image-params-change": {
             setImageParams(message.imageParams);
+            break;
+          }
+          case "command": {
+            if (!excalidrawAPI) {
+              break;
+            }
+            if (message.action === "save") {
+              // Force-serialize the current scene (bypassing the debounced
+              // onChange), hand the bytes to the host, and cancel the pending
+              // change so the file is not re-marked dirty after saving.
+              if (!props.serialize) {
+                vscode.postMessage({
+                  type: "command-result",
+                  id: message.id,
+                  ok: false,
+                  error: "Saving is not available for this document.",
+                });
+                break;
+              }
+              props.cancelPendingChange?.();
+              const appState = {
+                ...excalidrawAPI.getAppState(),
+                ...imageParams,
+                exportEmbedScene: true,
+              } as Partial<AppState>;
+              const bytes = await props.serialize(
+                excalidrawAPI.getSceneElements(),
+                appState,
+                excalidrawAPI.getFiles()
+              );
+              vscode.postMessage({
+                type: "command-result",
+                id: message.id,
+                ok: true,
+                data: { content: Array.from(bytes) },
+              });
+              break;
+            }
+            const result = await handleCommand(excalidrawAPI, message);
+            vscode.postMessage(result);
+            break;
           }
         }
       } catch (e) {
@@ -150,6 +200,12 @@ export default function App(props: {
     return () => {
       window.removeEventListener("message", listener);
     };
+  }, [excalidrawAPI]);
+
+  useEffect(() => {
+    if (excalidrawAPI) {
+      vscode.postMessage({ type: "ready" });
+    }
   }, [excalidrawAPI]);
 
   return (
@@ -179,7 +235,22 @@ export default function App(props: {
             files
           )
         }
+        onPointerUpdate={(payload) => pointerCbRef.current?.(payload)}
         onLinkOpen={(element, event) => {
+          // Code-linked elements navigate to their symbol instead of opening a
+          // URL. Uses Excalidraw's native link affordance (badge + hover + click)
+          // so we don't intercept the canvas's own pointer/keyboard handling.
+          const codeLink = (element as any).customData?.codeLink;
+          if (codeLink) {
+            event.preventDefault();
+            vscode.postMessage({
+              type: "intel",
+              id: `nav-${Date.now()}`,
+              op: "navigate",
+              params: { codeLink },
+            });
+            return;
+          }
           vscode.postMessage({
             type: "link-open",
             url: element.link,
@@ -198,6 +269,12 @@ export default function App(props: {
             type: "library-change",
             library: serializeLibraryAsJSON(libraryItems),
           });
+        }}
+      />
+      <CodeIntelOverlay
+        api={excalidrawAPI}
+        registerPointer={(cb) => {
+          pointerCbRef.current = cb;
         }}
       />
     </div>

@@ -10,8 +10,8 @@
 const path = require("path");
 
 /**@type {import('webpack').Configuration}*/
-const config = {
-  target: "webworker", // vscode extensions run in a Node.js-context 📖 -> https://webpack.js.org/configuration/node/
+const webConfig = {
+  target: "webworker", // web extension host 📖 -> https://webpack.js.org/configuration/node/
 
   entry: "./src/extension.ts", // the entry point of this extension, 📖 -> https://webpack.js.org/configuration/entry-context/
   output: {
@@ -52,4 +52,42 @@ const config = {
   },
 };
 
-module.exports = config;
+/**@type {import('webpack').Configuration}*/
+const nodeConfig = {
+  target: "node", // desktop extension host (Node) — enables the MCP bridge server
+
+  entry: "./src/extension.node.ts",
+  output: {
+    path: path.resolve(__dirname, "dist", "node"),
+    filename: "extension.js",
+    libraryTarget: "commonjs2",
+    devtoolModuleFilenameTemplate: "../[resource-path]",
+  },
+  devtool: "source-map",
+  externals: {
+    vscode: "commonjs vscode",
+  },
+  resolve: {
+    extensions: [".ts", ".js"],
+  },
+  module: {
+    rules: [
+      {
+        test: /\.ts$/,
+        exclude: /node_modules/,
+        use: [
+          {
+            loader: "ts-loader",
+            options: {
+              compilerOptions: {
+                module: "es6",
+              },
+            },
+          },
+        ],
+      },
+    ],
+  },
+};
+
+module.exports = [webConfig, nodeConfig];

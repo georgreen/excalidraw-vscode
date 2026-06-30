@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "esnext",
     "target": "es2019",
     "lib": [
       "ES2019",
@@ -8,14 +8,18 @@
     ],
     "outDir": "out",
     "sourceMap": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "strict": true,
+    "skipLibCheck": true,
     "rootDir": "src"
   },
   "exclude": [
     ".vscode-test",
     "**/src/excalidraw/**",
     "node_modules",
-    "webview"
+    "webview",
+    "vitest.config.ts",
+    "**/*.test.ts",
+    "src/test"
   ]
 }
