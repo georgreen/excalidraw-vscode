@@ -338,3 +338,13 @@ Host+webview tsc, lint, 12 tests, dual webpack clean; shipped 3.20.0. Live valid
   New callers = hoverMarkdown, navigateToDiagnostic, diagnosticsForLinks, generateGraph, expandRelations
   (all real); navigateToLink was already on the canvas and was **reused, not duplicated**; direction
   "in" (callers → resolveSymbol). P2.2 PASS.
+
+### 2026-06-30 — P2.3 reference/implementation counts (3.21.0)
+
+`router.symbolMetrics(link)` → `executeReferenceProvider` count (declaration occurrence excluded) and,
+for class/interface kinds, `executeImplementationProvider` count. New `metrics` intel op; the
+selection/hover panel shows "↪ N references · ⊂ M implementations". `get_code_hover_for_element` also
+returns the counts for agents. **Design deviation (logged):** implemented as an **on-demand panel line
++ agent field**, not a persistent badge on every node — a reference query per node would be expensive
+and noisy; on-demand keeps it cheap and clean. Host+webview tsc, lint, 12 tests, dual webpack clean;
+shipped 3.21.0.

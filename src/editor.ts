@@ -10,6 +10,7 @@ import {
   hoverMarkdown,
   navigateToLink,
   navigateToDiagnostic,
+  symbolMetrics,
   diagnosticsForLinks,
   CodeLink,
 } from "./codeintel/router";
@@ -434,6 +435,8 @@ export class ExcalidrawEditor {
       }
       if (msg.op === "hover") {
         data = await hoverMarkdown(link);
+      } else if (msg.op === "metrics") {
+        data = await symbolMetrics(link);
       } else if (msg.op === "navigate") {
         const opened = await navigateToLink(link);
         if (!opened) {

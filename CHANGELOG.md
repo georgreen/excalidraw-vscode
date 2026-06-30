@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.21.0
+
+Code-aware: reference & implementation counts (Phase 2 P2.3).
+
+- The selection/hover panel now shows **how many references** a linked symbol has (and, for
+  classes/interfaces, how many **implementations**), computed on demand via the language server.
+- `get_code_hover_for_element` also returns `references` / `implementations` counts for agents.
+
 ## 3.20.0
 
 Code-aware: expand relations on demand + cleaner generated graphs (Phase 2 P2.2).

@@ -90,6 +90,18 @@ kbd {
   opacity: 0.6;
   font-style: italic;
 }
+.code-intel-metrics {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+  font-family: var(--vscode-font-family, sans-serif);
+  opacity: 0.85;
+}
+.code-intel-metric {
+  white-space: nowrap;
+}
 
 /* Persistent diagnostic badge layer over the canvas */
 .code-diag-layer {

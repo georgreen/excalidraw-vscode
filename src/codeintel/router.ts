@@ -286,6 +286,60 @@ export async function hoverMarkdown(
   return hoverToMarkdown(hovers);
 }
 
+export interface SymbolMetrics {
+  references?: number;
+  implementations?: number;
+}
+
+/**
+ * Reference and (for types) implementation counts for a link, via
+ * `executeReferenceProvider` / `executeImplementationProvider`. Counts exclude
+ * the declaration itself for references.
+ */
+export async function symbolMetrics(link: CodeLink): Promise<SymbolMetrics> {
+  const r = await resolveSymbol(link);
+  if (!r) {
+    return {};
+  }
+  const out: SymbolMetrics = {};
+  try {
+    const refs =
+      (await vscode.commands.executeCommand<vscode.Location[]>(
+        "vscode.executeReferenceProvider",
+        r.uri,
+        r.position
+      )) || [];
+    // Drop the declaration occurrence itself when present.
+    out.references = Math.max(
+      0,
+      refs.filter(
+        (l) =>
+          !(
+            l.uri.toString() === r.uri.toString() &&
+            l.range.start.line === r.position.line
+          )
+      ).length
+    );
+  } catch {
+    // provider unavailable
+  }
+  const kind = (link.kind || "").toLowerCase();
+  if (kind === "interface" || kind === "class") {
+    try {
+      const impls =
+        (await vscode.commands.executeCommand<vscode.Location[]>(
+          "vscode.executeImplementationProvider",
+          r.uri,
+          r.position
+        )) || [];
+      out.implementations = impls.length;
+    } catch {
+      // provider unavailable
+    }
+  }
+  return out;
+}
+
 /** Resolve a workspace-relative (or absolute) file path to a URI. */
 async function fileToUri(file: string): Promise<vscode.Uri | undefined> {
   if (file.includes("://")) {

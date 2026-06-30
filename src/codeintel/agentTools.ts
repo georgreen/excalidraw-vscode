@@ -7,6 +7,7 @@ import {
   diagnosticsForLinks,
   hoverMarkdown,
   navigateToLink,
+  symbolMetrics,
   symbolInformationToCodeLink,
 } from "./router";
 
@@ -129,7 +130,14 @@ export async function hoverForElement(
     );
   }
   const hover = await hoverMarkdown(rec.codeLink);
-  return { id, symbol: rec.codeLink.symbol, hover: hover ?? null };
+  const metrics = await symbolMetrics(rec.codeLink);
+  return {
+    id,
+    symbol: rec.codeLink.symbol,
+    hover: hover ?? null,
+    references: metrics.references,
+    implementations: metrics.implementations,
+  };
 }
 
 /** Open the code behind a linked element in an editor. */

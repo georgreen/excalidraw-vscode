@@ -11,6 +11,7 @@ interface CodeInfo {
   loading: boolean;
   hoverMd: string;
   anchor: { left: number; top: number };
+  metrics?: { references?: number; implementations?: number };
 }
 
 type DiagBadge = {
@@ -177,6 +178,11 @@ export function CodeIntelOverlay(props: {
               hoverMd: md || "",
             }
           : cur
+      );
+    });
+    intel("metrics", { codeLink }).then((m: any) => {
+      setInfo((cur) =>
+        cur && cur.elementId === id ? { ...cur, metrics: m || {} } : cur
       );
     });
   };
@@ -349,6 +355,24 @@ export function CodeIntelOverlay(props: {
             ) : (
               <span className="code-intel-muted">No hover info.</span>
             )}
+            {info.metrics &&
+              (info.metrics.references !== undefined ||
+                info.metrics.implementations !== undefined) && (
+                <div className="code-intel-metrics">
+                  {info.metrics.references !== undefined && (
+                    <span className="code-intel-metric">
+                      ↪ {info.metrics.references} reference
+                      {info.metrics.references === 1 ? "" : "s"}
+                    </span>
+                  )}
+                  {info.metrics.implementations !== undefined && (
+                    <span className="code-intel-metric">
+                      ⊂ {info.metrics.implementations} implementation
+                      {info.metrics.implementations === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </div>
+              )}
           </div>
         </div>
       )}
