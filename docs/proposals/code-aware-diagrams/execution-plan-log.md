@@ -359,3 +359,10 @@ the symbol's `detail` signature when provided). Direction "out"; reuses the exis
 `expandFromElement` webview placement (no webview change). Note: "signature help" in the original task
 is delivered via the member `detail` + the existing code-aware hover (full signature), not the
 call-site `executeSignatureHelpProvider`. Host tsc + lint + 12 tests + webpack clean; shipped 3.22.0.
+
+### 2026-06-30 — P2.3 + P2.4 validated over MCP (3.21/3.22)
+
+- P2.3: `get_code_hover_for_element(ExcalidrawEditor)` → `references: 31, implementations: 2`. ✓
+- P2.4: `expand_element_relations(ExcalidrawEditor, members)` → added 8, connected 8; members are
+  pre-linked with dotted symbols + correct kinds (`ExcalidrawEditor.constructor`,
+  `.buildHtmlForWebview` method, `.document` property, …). ✓
