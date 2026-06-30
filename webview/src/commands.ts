@@ -285,6 +285,120 @@ async function runAction(
       };
     }
 
+    case "expandFromElement": {
+      const sourceId = params.sourceId as string;
+      const direction = params.direction === "in" ? "in" : "out";
+      const neighbors = (params.neighbors as any[]) || [];
+      const all = api.getSceneElements() as any[];
+      const source = all.find((e) => e.id === sourceId);
+      if (!source) {
+        throw new Error(`Source element "${sourceId}" not found.`);
+      }
+      // Index existing linked elements so we connect to (not duplicate) nodes
+      // that already represent a neighbor symbol.
+      const linkKey = (cl: any): string =>
+        cl?.uri && cl?.selectionStart
+          ? `${cl.uri}@${cl.selectionStart.line}:${cl.selectionStart.character}`
+          : `${cl?.symbol}|${cl?.file}`;
+      const existingByKey = new Map<string, string>();
+      for (const el of all) {
+        const cl = el.customData?.codeLink;
+        if (cl) {
+          existingByKey.set(linkKey(cl), el.id);
+        }
+      }
+      const kindColor = (kind?: string): string => {
+        switch (kind) {
+          case "interface":
+            return "#d0bfff";
+          case "function":
+            return "#a5d8ff";
+          case "method":
+            return "#ffd8a8";
+          case "class":
+            return "#b2f2bb";
+          default:
+            return "#ffec99";
+        }
+      };
+      // Place new nodes in a column offset from the source (right for "out",
+      // left for "in"), stacked vertically.
+      const colX =
+        direction === "out"
+          ? source.x + (source.width || 230) + 140
+          : source.x - 230 - 140;
+      const newSkeletons: any[] = [];
+      const targetIdByKey = new Map<string, string>();
+      let row = 0;
+      for (const nb of neighbors) {
+        const existingId = existingByKey.get(linkKey(nb.codeLink));
+        if (existingId) {
+          targetIdByKey.set(nb.key, existingId);
+          continue;
+        }
+        newSkeletons.push({
+          type: "rectangle",
+          x: colX,
+          y: source.y + row * 110,
+          width: 230,
+          height: 70,
+          backgroundColor: kindColor(nb.codeLink?.kind),
+          label: { text: String(nb.label ?? nb.codeLink?.symbol ?? "") },
+          link: nb.codeLink?.symbol ? `code: ${nb.codeLink.symbol}` : undefined,
+          customData: nb.codeLink ? { codeLink: nb.codeLink } : undefined,
+          __key: nb.key,
+        });
+        row++;
+      }
+      if (newSkeletons.length > 0) {
+        const skeletons = newSkeletons.map((s) => {
+          const { __key, ...rest } = s;
+          void __key;
+          return rest;
+        });
+        const created = convertToExcalidrawElements(skeletons, {
+          regenerateIds: true,
+        });
+        const containers = created.filter((e) => e.type !== "text");
+        newSkeletons.forEach((s, i) => {
+          if (containers[i]) {
+            targetIdByKey.set(s.__key, containers[i].id);
+          }
+        });
+        api.updateScene({ elements: [...api.getSceneElements(), ...created] });
+      }
+      // Connect arrows between the source and each neighbor in the right order.
+      const arrowSkeletons = neighbors
+        .map((nb: any) => {
+          const otherId = targetIdByKey.get(nb.key);
+          if (!otherId) {
+            return null;
+          }
+          const startId = direction === "out" ? sourceId : otherId;
+          const endId = direction === "out" ? otherId : sourceId;
+          const s = api.getSceneElements().find((el) => el.id === startId)!;
+          return {
+            type: "arrow",
+            x: s.x + (s.width || 0) / 2,
+            y: s.y + (s.height || 0) / 2,
+            start: { id: startId },
+            end: { id: endId },
+          };
+        })
+        .filter(Boolean) as any[];
+      if (arrowSkeletons.length > 0) {
+        const arrowEls = convertToExcalidrawElements(arrowSkeletons, {
+          regenerateIds: true,
+        });
+        api.updateScene({ elements: [...api.getSceneElements(), ...arrowEls] });
+      }
+      return {
+        added: newSkeletons.length,
+        connected: arrowSkeletons.length,
+        reused: neighbors.length - newSkeletons.length,
+      };
+    }
+
     case "addElements": {
       const skeleton = params.elements;
       if (!Array.isArray(skeleton)) {

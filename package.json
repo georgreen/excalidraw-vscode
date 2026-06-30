@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.19.0",
+    "version": "3.20.0",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -67,6 +67,7 @@
         "onLanguageModelTool:navigate_to_element_code",
         "onLanguageModelTool:get_linked_diagnostics",
         "onLanguageModelTool:generate_diagram_from_symbol",
+        "onLanguageModelTool:expand_element_relations",
         "onStartupFinished"
     ],
     "repository": {
@@ -1501,7 +1502,7 @@
                 "toolReferenceName": "generateDiagramFromSymbol",
                 "displayName": "Generate Diagram From Symbol",
                 "userDescription": "Generate a diagram from a code symbol's hierarchy.",
-                "modelDescription": "Generate a diagram from a code symbol by walking the language server's hierarchy and place it on the active Excalidraw canvas, pre-linked. 'mode' is 'calls' (outgoing call graph, default) or 'types' (supertype/inheritance graph); 'depth' (1-5) and 'maxNodes' cap the graph. Each generated node carries a precise code link so the diagram is immediately navigable (hover/jump/diagnostics). Returns node/edge counts and a truncated flag.",
+                "modelDescription": "Generate a diagram from a code symbol by walking the language server's hierarchy and place it on the active Excalidraw canvas, pre-linked. 'mode' is 'calls' (outgoing call graph, default) or 'types' (supertype/inheritance graph); 'depth' (1-5) and 'maxNodes' cap the graph. Each generated node carries a precise code link so the diagram is immediately navigable (hover/jump/diagnostics). Returns node/edge counts and a truncated flag. By default external symbols (node_modules / language libs) are excluded; set includeExternal:true to include them.",
                 "canBeReferencedInPrompt": true,
                 "icon": "$(type-hierarchy)",
                 "inputSchema": {
@@ -1534,10 +1535,65 @@
                         "maxNodes": {
                             "type": "number",
                             "description": "Maximum number of nodes (default 30)."
+                        },
+                        "includeExternal": {
+                            "type": "boolean",
+                            "description": "Include external symbols (node_modules / language libraries) as nodes. Default false (project symbols only)."
                         }
                     },
                     "required": [
                         "symbol"
+                    ]
+                }
+            },
+            {
+                "name": "expand_element_relations",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "code"
+                ],
+                "toolReferenceName": "expandElementRelations",
+                "displayName": "Expand Element Relations",
+                "userDescription": "Grow the diagram from a linked element by one relationship hop.",
+                "modelDescription": "Grow the diagram from an existing linked element by one relationship hop, adding the neighbours as pre-linked nodes connected to it. 'id' is the element id (from get_excalidraw_code_links). 'kind' is one of 'callees' (functions it calls), 'callers' (its callers), 'supertypes', 'subtypes', or 'implementations'. External symbols (node_modules / language libs) are excluded unless includeExternal:true. Existing nodes are reused, not duplicated. Returns counts of added/connected/reused.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(git-merge)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "id": {
+                            "type": "string",
+                            "description": "Element id to expand (from get_excalidraw_code_links)."
+                        },
+                        "kind": {
+                            "type": "string",
+                            "enum": [
+                                "callees",
+                                "callers",
+                                "supertypes",
+                                "subtypes",
+                                "implementations"
+                            ],
+                            "description": "Relationship to expand."
+                        },
+                        "maxNodes": {
+                            "type": "number",
+                            "description": "Maximum neighbours to add (default 20)."
+                        },
+                        "includeExternal": {
+                            "type": "boolean",
+                            "description": "Include node_modules / language-lib symbols (default false)."
+                        }
+                    },
+                    "required": [
+                        "id",
+                        "kind"
                     ]
                 }
             }

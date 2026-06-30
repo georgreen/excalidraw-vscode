@@ -60,6 +60,16 @@ function itemToCodeLink(it: HierarchyItem): CodeLink {
   };
 }
 
+/** A symbol that lives outside the user's source (dependencies / language libs). */
+export function isExternalUri(uri: vscode.Uri): boolean {
+  const p = uri.path;
+  return (
+    /\/node_modules\//.test(p) ||
+    /\/lib\.[^/]*\.d\.ts$/.test(p) ||
+    /\/typescript\/lib\//.test(p)
+  );
+}
+
 async function neighbors(
   item: HierarchyItem,
   mode: "calls" | "types"
@@ -90,10 +100,12 @@ export async function generateGraph(opts: {
   mode?: "calls" | "types";
   depth?: number;
   maxNodes?: number;
+  includeExternal?: boolean;
 }): Promise<GenGraph> {
   const mode = opts.mode === "types" ? "types" : "calls";
   const depth = Math.max(1, Math.min(opts.depth ?? 2, 5));
   const maxNodes = Math.max(1, Math.min(opts.maxNodes ?? 30, 100));
+  const includeExternal = opts.includeExternal ?? false;
 
   const r = await resolveSymbol({ symbol: opts.symbol, file: opts.file });
   if (!r) {
@@ -152,6 +164,9 @@ export async function generateGraph(opts: {
         continue;
       }
       for (const to of await neighbors(item, mode)) {
+        if (!includeExternal && isExternalUri(to.uri)) {
+          continue;
+        }
         const toKey = keyOf(to);
         if (!nodes.has(toKey) && nodes.size >= maxNodes) {
           truncated = true;
@@ -190,4 +205,193 @@ export async function generateGraph(opts: {
     edges,
     truncated,
   };
+}
+
+export type RelationKind =
+  | "callees"
+  | "callers"
+  | "supertypes"
+  | "subtypes"
+  | "implementations";
+
+export interface RelationNeighbor {
+  key: string;
+  label: string;
+  codeLink: CodeLink;
+}
+
+export interface ExpandResult {
+  kind: RelationKind;
+  /** "out": edge source→neighbor; "in": edge neighbor→source. */
+  direction: "out" | "in";
+  neighbors: RelationNeighbor[];
+  truncated: boolean;
+}
+
+function locationToItem(loc: vscode.Location | vscode.LocationLink): {
+  uri: vscode.Uri;
+  range: vscode.Range;
+} {
+  const link = loc as vscode.LocationLink;
+  if (link.targetUri) {
+    return {
+      uri: link.targetUri,
+      range: link.targetSelectionRange ?? link.targetRange,
+    };
+  }
+  const l = loc as vscode.Location;
+  return { uri: l.uri, range: l.range };
+}
+
+/**
+ * Name the enclosing symbol at a position (deepest document symbol whose range
+ * contains it). Used to label implementation/reference targets, which come back
+ * as bare locations.
+ */
+async function nameAtLocation(
+  uri: vscode.Uri,
+  pos: vscode.Position
+): Promise<{ name: string; kind: vscode.SymbolKind; selection: vscode.Range }> {
+  const symbols =
+    (await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+      "vscode.executeDocumentSymbolProvider",
+      uri
+    )) || [];
+  let best: vscode.DocumentSymbol | undefined;
+  const dfs = (list: vscode.DocumentSymbol[]) => {
+    for (const s of list) {
+      if (s.range.contains(pos)) {
+        best = s;
+        dfs(s.children || []);
+      }
+    }
+  };
+  dfs(symbols);
+  if (best) {
+    return { name: best.name, kind: best.kind, selection: best.selectionRange };
+  }
+  return {
+    name: uri.path.split("/").pop() || "symbol",
+    kind: vscode.SymbolKind.File,
+    selection: new vscode.Range(pos, pos),
+  };
+}
+
+/**
+ * Expand one relationship hop from an already-linked element. Returns the
+ * neighbor symbols (each with a precise codeLink) and the edge direction, so the
+ * caller can place them next to the source on the canvas.
+ */
+export async function expandRelations(opts: {
+  codeLink: CodeLink;
+  kind: RelationKind;
+  maxNodes?: number;
+  includeExternal?: boolean;
+}): Promise<ExpandResult> {
+  const kind = opts.kind;
+  const maxNodes = Math.max(1, Math.min(opts.maxNodes ?? 20, 100));
+  const includeExternal = opts.includeExternal ?? false;
+
+  const r = await resolveSymbol(opts.codeLink);
+  if (!r) {
+    throw new Error(
+      `Could not resolve "${opts.codeLink.symbol}". Make sure the project is open and indexed.`
+    );
+  }
+
+  const items: HierarchyItem[] = [];
+  let direction: "out" | "in" = "out";
+
+  if (kind === "callees" || kind === "callers") {
+    const roots =
+      (await vscode.commands.executeCommand<HierarchyItem[]>(
+        "vscode.prepareCallHierarchy",
+        r.uri,
+        r.position
+      )) || [];
+    if (roots[0]) {
+      if (kind === "callees") {
+        direction = "out";
+        const out =
+          (await vscode.commands.executeCommand<{ to: HierarchyItem }[]>(
+            "vscode.provideOutgoingCalls",
+            roots[0]
+          )) || [];
+        items.push(...out.map((c) => c.to).filter(Boolean));
+      } else {
+        direction = "in";
+        const inc =
+          (await vscode.commands.executeCommand<{ from: HierarchyItem }[]>(
+            "vscode.provideIncomingCalls",
+            roots[0]
+          )) || [];
+        items.push(...inc.map((c) => c.from).filter(Boolean));
+      }
+    }
+  } else if (kind === "supertypes" || kind === "subtypes") {
+    const roots =
+      (await vscode.commands.executeCommand<HierarchyItem[]>(
+        "vscode.prepareTypeHierarchy",
+        r.uri,
+        r.position
+      )) || [];
+    if (roots[0]) {
+      direction = kind === "supertypes" ? "out" : "in";
+      const cmd =
+        kind === "supertypes"
+          ? "vscode.provideSupertypes"
+          : "vscode.provideSubtypes";
+      items.push(
+        ...((await vscode.commands.executeCommand<HierarchyItem[]>(
+          cmd,
+          roots[0]
+        )) || [])
+      );
+    }
+  } else if (kind === "implementations") {
+    direction = "in";
+    const locs =
+      (await vscode.commands.executeCommand<
+        (vscode.Location | vscode.LocationLink)[]
+      >("vscode.executeImplementationProvider", r.uri, r.position)) || [];
+    for (const loc of locs) {
+      const { uri, range } = locationToItem(loc);
+      const named = await nameAtLocation(uri, range.start);
+      items.push({
+        name: named.name,
+        kind: named.kind,
+        uri,
+        range,
+        selectionRange: named.selection,
+      });
+    }
+  }
+
+  // Dedupe by key, drop the source itself, optionally drop externals.
+  const seen = new Set<string>([
+    `${r.uri.toString()}@${r.position.line}:${r.position.character}`,
+  ]);
+  const neighbors: RelationNeighbor[] = [];
+  let truncated = false;
+  for (const it of items) {
+    if (!includeExternal && isExternalUri(it.uri)) {
+      continue;
+    }
+    const key = keyOf(it);
+    if (seen.has(key)) {
+      continue;
+    }
+    if (neighbors.length >= maxNodes) {
+      truncated = true;
+      break;
+    }
+    seen.add(key);
+    neighbors.push({
+      key,
+      label: cleanName(it.name),
+      codeLink: itemToCodeLink(it),
+    });
+  }
+
+  return { kind, direction, neighbors, truncated };
 }

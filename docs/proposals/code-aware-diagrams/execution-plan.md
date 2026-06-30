@@ -130,7 +130,7 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
 - [x] **P2.1** **"Visualize as Excalidraw"** from a symbol: `prepareTypeHierarchy` (inheritance) and
   `prepareCallHierarchy` (calls) → skeletons → `convertToExcalidrawElements` → `updateScene`,
   pre-linked. Depth limit + node cap.
-- [ ] **P2.2** `generate_diagram_from_symbol` and `expand_element_relations` agent tools.
+- [x] **P2.2** `generate_diagram_from_symbol` and `expand_element_relations` agent tools.
 - [ ] **P2.3** Reference/implementation **count badges**.
 - [ ] **P2.4** Insert **members with signatures** (`executeDocumentSymbolProvider` + signature help).
 - [ ] **P2.5** **Link freshness**: `onDidRenameFiles` / `onDidChangeTextDocument` → update hints /

@@ -16,6 +16,7 @@ import {
   navigateElement,
   linkedDiagnostics,
   generateDiagramFromSymbol,
+  expandElementRelations,
 } from "../codeintel/agentTools";
 import { ExcalidrawEditor } from "../editor";
 
@@ -613,9 +614,10 @@ export function createMcpServer(version: string): McpServer {
         mode: z.enum(["calls", "types"]).optional(),
         depth: z.number().optional(),
         maxNodes: z.number().optional(),
+        includeExternal: z.boolean().optional(),
       },
     },
-    async ({ path, symbol, file, mode, depth, maxNodes }) =>
+    async ({ path, symbol, file, mode, depth, maxNodes, includeExternal }) =>
       result({
         ok: true,
         ...(await generateDiagramFromSymbol({
@@ -625,6 +627,39 @@ export function createMcpServer(version: string): McpServer {
           mode,
           depth,
           maxNodes,
+          includeExternal,
+        })),
+      })
+  );
+
+  server.registerTool(
+    "expand_element_relations",
+    {
+      description:
+        "Grow the diagram from an existing linked element by one relationship hop, adding the neighbors as pre-linked nodes connected to it. 'id' is the element id (from get_excalidraw_code_links). 'kind' is one of: 'callees' (functions it calls), 'callers' (callers of it), 'supertypes', 'subtypes', or 'implementations'. Externals (node_modules / language libs) are excluded unless 'includeExternal' is true. Existing nodes are reused (not duplicated). Returns counts of added/connected/reused.",
+      inputSchema: {
+        path: PATH,
+        id: z.string(),
+        kind: z.enum([
+          "callees",
+          "callers",
+          "supertypes",
+          "subtypes",
+          "implementations",
+        ]),
+        maxNodes: z.number().optional(),
+        includeExternal: z.boolean().optional(),
+      },
+    },
+    async ({ path, id, kind, maxNodes, includeExternal }) =>
+      result({
+        ok: true,
+        ...(await expandElementRelations({
+          path,
+          id,
+          kind,
+          maxNodes,
+          includeExternal,
         })),
       })
   );

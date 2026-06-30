@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { canvasCommand } from "../canvasTools";
-import { generateGraph } from "./generate";
+import { generateGraph, expandRelations, RelationKind } from "./generate";
 import {
   CodeLink,
   bestWorkspaceSymbol,
@@ -162,6 +162,7 @@ export async function generateDiagramFromSymbol(input: {
   mode?: "calls" | "types";
   depth?: number;
   maxNodes?: number;
+  includeExternal?: boolean;
   originX?: number;
   originY?: number;
 }): Promise<Record<string, unknown>> {
@@ -178,6 +179,47 @@ export async function generateDiagramFromSymbol(input: {
     edgeCount: graph.edges.length,
     truncated: graph.truncated,
     nodes: placed?.nodes,
+  };
+}
+
+/** Grow the diagram from an existing linked element by one relationship hop. */
+export async function expandElementRelations(input: {
+  path?: string;
+  id: string;
+  kind: RelationKind;
+  maxNodes?: number;
+  includeExternal?: boolean;
+}): Promise<Record<string, unknown>> {
+  const rec = (await fetchLinks(input.path)).find((l) => l.id === input.id);
+  if (!rec) {
+    throw new Error(
+      `Element "${input.id}" has no code link. Link it first, or use a generated/linked node.`
+    );
+  }
+  const result = await expandRelations({
+    codeLink: rec.codeLink,
+    kind: input.kind,
+    maxNodes: input.maxNodes,
+    includeExternal: input.includeExternal,
+  });
+  if (result.neighbors.length === 0) {
+    return {
+      kind: result.kind,
+      added: 0,
+      connected: 0,
+      note: `No ${input.kind} found for "${rec.codeLink.symbol}".`,
+    };
+  }
+  const placed = (await canvasCommand(input.path, "expandFromElement", {
+    sourceId: input.id,
+    direction: result.direction,
+    neighbors: result.neighbors,
+  })) as Record<string, unknown>;
+  return {
+    kind: result.kind,
+    direction: result.direction,
+    truncated: result.truncated,
+    ...placed,
   };
 }
 
@@ -276,6 +318,7 @@ interface GenerateInput {
   mode?: "calls" | "types";
   depth?: number;
   maxNodes?: number;
+  includeExternal?: boolean;
   originX?: number;
   originY?: number;
 }
@@ -301,6 +344,32 @@ class GenerateDiagramTool implements vscode.LanguageModelTool<GenerateInput> {
   }
 }
 
+interface ExpandInput {
+  path?: string;
+  id: string;
+  kind: RelationKind;
+  maxNodes?: number;
+  includeExternal?: boolean;
+}
+
+class ExpandRelationsTool implements vscode.LanguageModelTool<ExpandInput> {
+  async prepareInvocation(
+    options: vscode.LanguageModelToolInvocationPrepareOptions<ExpandInput>
+  ) {
+    return {
+      invocationMessage: `Expanding ${options.input.kind} of element ${options.input.id}`,
+    };
+  }
+  async invoke(
+    options: vscode.LanguageModelToolInvocationOptions<ExpandInput>
+  ) {
+    return jsonResult({
+      ok: true,
+      ...(await expandElementRelations(options.input)),
+    });
+  }
+}
+
 export function registerCodeIntelTools(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.lm.registerTool("link_excalidraw_to_symbol", new LinkToSymbolTool()),
@@ -320,6 +389,10 @@ export function registerCodeIntelTools(context: vscode.ExtensionContext) {
     vscode.lm.registerTool(
       "generate_diagram_from_symbol",
       new GenerateDiagramTool()
+    ),
+    vscode.lm.registerTool(
+      "expand_element_relations",
+      new ExpandRelationsTool()
     )
   );
 }

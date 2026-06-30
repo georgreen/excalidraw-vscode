@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.20.0
+
+Code-aware: expand relations on demand + cleaner generated graphs (Phase 2 P2.2).
+
+- New tool **expand_element_relations** (Language Model + MCP): grow the diagram from an existing
+  linked element by one relationship hop — `callees`, `callers`, `supertypes`, `subtypes`, or
+  `implementations` — adding the neighbours as pre-linked, connected nodes. Existing nodes are reused
+  rather than duplicated.
+- **generate_diagram_from_symbol** and the expand tool now **exclude external symbols**
+  (`node_modules` / language libraries) by default for cleaner graphs; pass `includeExternal: true` to
+  include them.
+
 ## 3.19.0
 
 MCP bridge: multi-window safe discovery.

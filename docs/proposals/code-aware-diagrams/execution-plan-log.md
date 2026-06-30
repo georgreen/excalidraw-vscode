@@ -315,3 +315,17 @@ P2.1 generate (P2.V2): `generate_diagram_from_symbol` —
 - Note (future polish): "calls" mode pulls in `node_modules`/TS-lib symbols (executeCommand, filter,
   endsWith) — consider an option to exclude externals for cleaner graphs.
 The earlier "could not resolve" failures were purely the wrong-window routing (now fixed), not P2.1.
+
+### 2026-06-30 — P2.2 expand_element_relations + exclude-externals (3.20.0)
+
+- **expand_element_relations** `{id, kind}` (LM + MCP): grows the diagram from an existing linked
+  element by one hop. Kinds: `callees`/`callers` (call hierarchy in/out), `supertypes`/`subtypes`
+  (type hierarchy), `implementations` (executeImplementationProvider, names resolved via document
+  symbols). Host `expandRelations` (generate.ts) returns neighbours + edge direction; new webview
+  action `expandFromElement` places new nodes in an offset column, **reuses** existing nodes for
+  symbols already on the canvas (dedupe by uri/selectionStart or symbol+file), and connects arrows in
+  the correct direction.
+- **Exclude externals**: `isExternalUri` filters `node_modules` / TS-lib `.d.ts`; both `generateGraph`
+  and `expandRelations` default to project-only (`includeExternal:true` to include). Addresses the
+  earlier "calls" noise note.
+Host+webview tsc, lint, 12 tests, dual webpack clean; shipped 3.20.0. Live validation pending reload.
