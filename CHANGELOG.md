@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.25.1
+
+Code-aware: the stale badge (⟳) is now actionable.
+
+- Clicking a stale link badge offers a quick fix: for a **moved** symbol, *"Update link"* re-points the
+  diagram element at the new file; for a **missing** symbol, options to *open the last-known file* or
+  *remove the link*. (Previously the badge only showed a tooltip.)
+
 ## 3.25.0
 
 Code-aware: open all references/implementations from the panel.

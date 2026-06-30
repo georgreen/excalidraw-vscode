@@ -335,14 +335,25 @@ export function CodeIntelOverlay(props: {
         const top = (el.y + (appState2?.scrollY ?? 0)) * zoom - 8;
         const title =
           s.reason === "moved"
-            ? `Link may be stale: symbol now in ${s.newFile}`
-            : "Link is stale: symbol not found in the code";
+            ? `Link may be stale: symbol now in ${s.newFile} — click to fix`
+            : "Link is stale: symbol not found in the code — click for options";
         return (
           <div
             key={`stale-${id}`}
             className="code-stale-badge"
             style={{ left, top }}
             title={title}
+            onClick={() => {
+              const codeLink = el?.customData?.codeLink;
+              if (codeLink) {
+                intel("fixStale", {
+                  codeLink,
+                  elementId: id,
+                  reason: s.reason,
+                  newFile: s.newFile,
+                });
+              }
+            }}
           >
             ⟳
           </div>

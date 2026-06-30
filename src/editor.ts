@@ -443,7 +443,12 @@ export class ExcalidrawEditor {
   private async handleIntel(msg: {
     id: string;
     op: string;
-    params?: { codeLink?: CodeLink };
+    params?: {
+      codeLink?: CodeLink;
+      elementId?: string;
+      reason?: "missing" | "moved";
+      newFile?: string;
+    };
   }) {
     try {
       const link = msg.params?.codeLink as CodeLink | undefined;
@@ -459,6 +464,8 @@ export class ExcalidrawEditor {
         data = await showRelatedLocations(link, "references");
       } else if (msg.op === "showImplementations") {
         data = await showRelatedLocations(link, "implementations");
+      } else if (msg.op === "fixStale") {
+        data = await this.fixStaleLink(link, msg.params);
       } else if (msg.op === "navigate") {
         const opened = await navigateToLink(link);
         if (!opened) {
@@ -496,6 +503,70 @@ export class ExcalidrawEditor {
         error: (e as Error).message || String(e),
       });
     }
+  }
+
+  /**
+   * Offer a quick fix for a stale code link (the "diagram linter"): for a moved
+   * symbol, update the link's file to the new location; for a missing symbol,
+   * offer to open the last-known file or remove the link.
+   */
+  private async fixStaleLink(
+    link: CodeLink,
+    params?: {
+      elementId?: string;
+      reason?: "missing" | "moved";
+      newFile?: string;
+    }
+  ): Promise<{ action: string }> {
+    const id = params?.elementId;
+    if (params?.reason === "moved" && params.newFile && id) {
+      const choice = await vscode.window.showInformationMessage(
+        `"${link.symbol}" moved to ${params.newFile}. Update the diagram link?`,
+        "Update link",
+        "Dismiss"
+      );
+      if (choice === "Update link") {
+        await this.sendCommand("setCodeLink", {
+          ids: [id],
+          codeLink: {
+            ...link,
+            file: params.newFile,
+            uri: undefined,
+            selectionStart: undefined,
+            status: "linked",
+          },
+        });
+        this.refreshFreshness();
+        return { action: "updated" };
+      }
+      return { action: "dismissed" };
+    }
+
+    // missing
+    const choice = await vscode.window.showWarningMessage(
+      `"${link.symbol}" was not found in the code. The diagram may be out of date.`,
+      "Open last-known file",
+      "Remove link",
+      "Dismiss"
+    );
+    if (choice === "Open last-known file" && link.file) {
+      try {
+        const uri = vscode.Uri.joinPath(
+          vscode.workspace.workspaceFolders?.[0]?.uri ?? vscode.Uri.file("/"),
+          link.file
+        );
+        await vscode.window.showTextDocument(uri, { preview: true });
+      } catch {
+        vscode.window.showErrorMessage(`Could not open ${link.file}.`);
+      }
+      return { action: "opened" };
+    }
+    if (choice === "Remove link" && id) {
+      await this.sendCommand("setCodeLink", { ids: [id], codeLink: null });
+      this.refreshFreshness();
+      return { action: "removed" };
+    }
+    return { action: "dismissed" };
   }
 
   private scheduleDiagnosticsRefresh() {

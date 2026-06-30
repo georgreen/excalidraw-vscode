@@ -400,3 +400,12 @@ locations via `executeReferenceProvider`/`executeImplementationProvider`, opens 
 locations)` opens VS Code's peek. New intel ops `showReferences`/`showImplementations`; the panel
 metric spans are now `<button>`s (link-styled). Host+webview tsc, lint, 15 tests, dual webpack clean;
 shipped 3.25.0.
+
+### 2026-06-30 — Stale badge made actionable (3.25.1)
+
+User asked what the yellow ⟳ badge does (it had `cursor:help` + tooltip only). Made it a one-click
+diagram-linter quick-fix: webview badge onClick → intel `fixStale` {codeLink, elementId, reason,
+newFile}; host `fixStaleLink` shows — for "moved": "Update link" (setCodeLink with the new file hint) /
+Dismiss; for "missing": "Open last-known file" / "Remove link" (setCodeLink null) / Dismiss. Cursor
+changed to pointer; tooltip updated to "click to fix". Host+webview tsc, lint, 15 tests, webpack clean;
+shipped 3.25.1.

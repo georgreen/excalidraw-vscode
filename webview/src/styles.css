@@ -150,5 +150,5 @@ kbd {
   background: var(--vscode-editorWarning-foreground, #cca700);
   color: #1e1e1e;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  cursor: help;
+  cursor: pointer;
 }
