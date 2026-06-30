@@ -329,3 +329,12 @@ The earlier "could not resolve" failures were purely the wrong-window routing (n
   and `expandRelations` default to project-only (`includeExternal:true` to include). Addresses the
   earlier "calls" noise note.
 Host+webview tsc, lint, 12 tests, dual webpack clean; shipped 3.20.0. Live validation pending reload.
+
+### 2026-06-30 — P2.2 validated over MCP (3.20.0)
+
+- Exclude-externals: `generate_diagram_from_symbol(navigateToLink, calls, d1)` → 3 **project** nodes
+  (navigateToLink → resolveSymbol, fileToUri); the prior node_modules/TS-lib noise is gone.
+- Expand: `expand_element_relations(resolveSymbol, callers)` → **added 5, connected 6, reused 1**.
+  New callers = hoverMarkdown, navigateToDiagnostic, diagnosticsForLinks, generateGraph, expandRelations
+  (all real); navigateToLink was already on the canvas and was **reused, not duplicated**; direction
+  "in" (callers → resolveSymbol). P2.2 PASS.
