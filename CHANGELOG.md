@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.24.0
+
+Code-aware: reverse index + CodeLens (Phase 2 P2.6).
+
+- A **CodeLens** now appears on a code symbol that is referenced by a diagram — *"Appears in
+  architecture.excalidraw"* — and clicking it opens that diagram and **focuses/selects the element**.
+  Built from a reverse index over `customData.codeLink` across the workspace's `.excalidraw` files,
+  kept up to date as diagrams change.
+
 ## 3.23.0
 
 Code-aware: link freshness / diagram linter (Phase 2 P2.5).

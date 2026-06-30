@@ -134,8 +134,7 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
 - [x] **P2.3** Reference/implementation **count badges** (shown in the selection panel + agent hover; on-demand, not a persistent per-node badge).
 - [x] **P2.4** Insert **members with signatures** via expand kind `members` (`executeDocumentSymbolProvider`; signatures via member detail + code-aware hover).
 - [x] **P2.5** **Link freshness**: re-check on `onDidSaveTextDocument` / `onDidRenameFiles`; surface drift as a non-destructive stale badge ("diagram linter": missing / moved).
-- [ ] **P2.6** **Reverse index + CodeLens**: scan `customData.codeLink` across `.excalidraw` files;
-  CodeLens on symbols → open + focus element (desktop-first).
+- [x] **P2.6** **Reverse index + CodeLens**: scan `customData.codeLink` across `.excalidraw` files; CodeLens "Appears in <diagram>" on symbols → open + focus element.
 - [ ] **P2.7** **Edge relationship resolution** (design §11): derive `(A,B)` symbols from an arrow's
   bound endpoints' `codeLink`s; probe most-specific kind first (inherits → calls → references) via
   `prepareCallHierarchy`/`provideOutgoingCalls` `fromRanges`, `executeReferenceProvider`,

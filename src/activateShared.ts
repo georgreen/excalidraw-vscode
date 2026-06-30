@@ -4,6 +4,7 @@ import { ExcalidrawEditorProvider } from "./editor";
 import { ExcalidrawUriHandler } from "./uri-handler";
 import { registerTools } from "./tools";
 import { registerCodeIntelCommands } from "./codeintel/commands";
+import { registerReverseIndexCodeLens } from "./codeintel/codelens";
 
 /**
  * Activation logic shared by both the web (`extension.ts`) and node
@@ -17,4 +18,5 @@ export async function activateShared(context: vscode.ExtensionContext) {
   registerCommands(context);
   registerTools(context);
   registerCodeIntelCommands(context);
+  registerReverseIndexCodeLens(context);
 }

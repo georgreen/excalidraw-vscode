@@ -378,3 +378,15 @@ hint, with newFile). Editor subscribes to `onDidSaveTextDocument` + `onDidRename
 re-resolving on every edit; marks stale via overlay rather than writing `status:"stale"` into the file
 (non-destructive, mirrors diagnostics). Auto-updating moved hints (rewriting customData) deferred — the
 badge surfaces it without dirtying the doc. Host+webview tsc, lint, 15 tests, webpack clean; 3.23.0.
+
+### 2026-06-30 — P2.6 reverse index + CodeLens (3.24.0)
+
+`src/codeintel/codelens.ts`: `ReverseIndex` scans all `.excalidraw` files (findFiles, JSON parse) and
+collects `customData.codeLink` entries → {diagram, elementId, symbol, uri/line | file}. A
+`CodeLensProvider` ({scheme:file}) emits a lens at the symbol — by uri+line when the link has a cached
+position, else by resolving the bare name via `executeDocumentSymbolProvider` for file-hint links
+(covers the demo) — titled "Appears in <diagram>" / "in N diagrams". The lens command
+`excalidraw.focusElementInDiagram` opens the diagram editor, reveals it, and selects + scrolls to the
+element. A FileSystemWatcher on `**/*.excalidraw` invalidates the index + refreshes lenses on
+create/change/delete. Registered in activateShared (web + node). Host tsc + lint + 15 tests + dual
+webpack clean; shipped 3.24.0. Completes the P2.1–P2.6 generate/enrich block.
