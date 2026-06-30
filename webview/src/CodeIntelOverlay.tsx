@@ -26,6 +26,7 @@ interface EdgeInfo {
   verified?: boolean;
   count?: number;
   note?: string;
+  declaredKind?: string;
 }
 
 type DiagBadge = {
@@ -287,6 +288,7 @@ export function CodeIntelOverlay(props: {
           const endEl: any = elements.find((e) => e.id === endId);
           const from = startEl?.customData?.codeLink;
           const to = endEl?.customData?.codeLink;
+          const declaredKind = arrow?.customData?.relation?.kind;
           if (from && to) {
             const anchor = computeAnchor(arrow, appState);
             setEdge({
@@ -297,6 +299,7 @@ export function CodeIntelOverlay(props: {
               toSymbol: to.symbol,
               anchor,
               loading: true,
+              declaredKind,
             });
             intel("edge", { from, to }).then((rel: any) => {
               setEdge((cur) =>
@@ -540,15 +543,22 @@ export function CodeIntelOverlay(props: {
             {edge.loading ? (
               <span className="code-intel-muted">Resolving relationship…</span>
             ) : edge.kind && edge.kind !== "none" ? (
-              <div className="code-edge-summary">
-                <span className="code-edge-kind">{edge.kind}</span>
-                <span className="code-edge-verified">✓ verified</span>
-                {typeof edge.count === "number" && edge.count > 0 && (
-                  <span className="code-edge-count">
-                    {edge.count} site{edge.count === 1 ? "" : "s"}
-                  </span>
+              <>
+                <div className="code-edge-summary">
+                  <span className="code-edge-kind">{edge.kind}</span>
+                  <span className="code-edge-verified">✓ verified</span>
+                  {typeof edge.count === "number" && edge.count > 0 && (
+                    <span className="code-edge-count">
+                      {edge.count} site{edge.count === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </div>
+                {edge.declaredKind && edge.declaredKind !== edge.kind && (
+                  <div className="code-edge-mismatch">
+                    ⚠ declared “{edge.declaredKind}” but code shows “{edge.kind}”
+                  </div>
                 )}
-              </div>
+              </>
             ) : (
               <span className="code-intel-muted">
                 {edge.note || "No concrete relationship found (conceptual)."}

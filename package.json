@@ -3,7 +3,7 @@
     "icon": "assets/logo.png",
     "displayName": "Excalidraw",
     "description": "Draw schemas in VS Code using Excalidraw",
-    "version": "3.26.0",
+    "version": "3.27.0",
     "publisher": "pomdtr",
     "engines": {
         "vscode": "^1.95.0"
@@ -69,6 +69,7 @@
         "onLanguageModelTool:generate_diagram_from_symbol",
         "onLanguageModelTool:expand_element_relations",
         "onLanguageModelTool:get_edge_relation",
+        "onLanguageModelTool:set_edge_relation",
         "onStartupFinished"
     ],
     "repository": {
@@ -1623,6 +1624,41 @@
                         "arrowId": {
                             "type": "string",
                             "description": "The arrow element id (from get_excalidraw_scene)."
+                        }
+                    },
+                    "required": [
+                        "arrowId"
+                    ]
+                }
+            },
+            {
+                "name": "set_edge_relation",
+                "tags": [
+                    "excalidraw",
+                    "diagram",
+                    "drawing",
+                    "code"
+                ],
+                "toolReferenceName": "setEdgeRelation",
+                "displayName": "Set Edge Relation",
+                "userDescription": "Declare an arrow's intended code relationship.",
+                "modelDescription": "Declare (or clear) an arrow's intended relationship metadata on the diagram. 'arrowId' is the arrow element id; 'kind' is the declared relationship (e.g. 'calls', 'inherits', 'references', 'association') \u2014 omit or pass null to clear. The declared kind is verified against the code by get_edge_relation, which reports a 'mismatch' when the code shows a different relationship.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(edit)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Target diagram path (workspace-relative unless absolute). If omitted, the currently active Excalidraw editor is used."
+                        },
+                        "arrowId": {
+                            "type": "string",
+                            "description": "The arrow element id."
+                        },
+                        "kind": {
+                            "type": "string",
+                            "description": "Declared relationship kind (calls/inherits/references/association). Omit to clear."
                         }
                     },
                     "required": [

@@ -18,6 +18,7 @@ import {
   generateDiagramFromSymbol,
   expandElementRelations,
   edgeRelation,
+  setEdgeRelationMeta,
 } from "../codeintel/agentTools";
 import { ExcalidrawEditor } from "../editor";
 
@@ -675,6 +676,24 @@ export function createMcpServer(version: string): McpServer {
     },
     async ({ path, arrowId }) =>
       result({ ok: true, ...(await edgeRelation(path, arrowId)) })
+  );
+
+  server.registerTool(
+    "set_edge_relation",
+    {
+      description:
+        "Declare (or clear) an arrow's intended relationship metadata on the diagram. 'arrowId' is the arrow element id; 'kind' is the declared relationship (e.g. 'calls', 'inherits', 'references', 'association') — omit or pass null to clear. The declared kind is verified against the code by get_edge_relation (which reports a 'mismatch' when the code shows a different relationship).",
+      inputSchema: {
+        path: PATH,
+        arrowId: z.string(),
+        kind: z.string().nullable().optional(),
+      },
+    },
+    async ({ path, arrowId, kind }) =>
+      result({
+        ok: true,
+        ...(await setEdgeRelationMeta(path, arrowId, kind ?? null)),
+      })
   );
 
   return server;

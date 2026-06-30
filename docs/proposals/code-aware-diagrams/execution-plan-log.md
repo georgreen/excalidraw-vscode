@@ -423,3 +423,13 @@ selected **arrow**, derives (A,B) from its bound endpoints' codeLinks, shows an 
 verified + site count + "Go to relationship"). Agent/MCP tool `get_edge_relation {arrowId}` via new
 read-only webview action `getEdgeEndpoints`. Host+webview tsc, lint, 15 tests, dual webpack clean;
 shipped 3.26.0. P2.10 (arrow.customData.relation metadata) still pending.
+
+### 2026-06-30 — P2.10 edge metadata (3.27.0) — Phase 2 COMPLETE
+
+`arrow.customData.relation = {kind,...,lastChecked}` via new webview action `setEdgeRelation`
+(mutating) + read in `getEdgeEndpoints`. `edgeRelation` now returns `declaredKind` + `mismatch` (true
+when a declared kind differs from the detected relationship); the edge panel shows a "⚠ declared X but
+code shows Y" warning. New tool `set_edge_relation {arrowId, kind}` (LM + MCP) to declare/clear intent.
+Host+webview tsc, lint, 15 tests, dual webpack clean; shipped 3.27.0. **All of Phase 2 (P2.1–P2.10)
+implemented.** Remaining Phase 2: validations P2.V1 (gen unit test), P2.V3 (rename→stale), P2.V4
+(edge click → site) — plus the pending visual checks. Edge tools need a reload to validate over MCP.

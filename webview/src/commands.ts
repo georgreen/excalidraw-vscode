@@ -416,8 +416,30 @@ async function runAction(
         arrowId,
         from: from || null,
         to: to || null,
+        relation: arrow.customData?.relation || null,
         bound: !!(from && to),
       };
+    }
+
+    case "setEdgeRelation": {
+      const arrowId = params.arrowId as string;
+      const relation = params.relation;
+      const elements = api.getSceneElementsIncludingDeleted().map((el) =>
+        el.id === arrowId
+          ? {
+              ...el,
+              customData: {
+                ...((el as any).customData || {}),
+                relation:
+                  relation === null
+                    ? undefined
+                    : { ...relation, lastChecked: new Date().toISOString() },
+              },
+            }
+          : el
+      );
+      api.updateScene({ elements });
+      return { arrowId, relation: relation ?? null };
     }
 
     case "addElements": {

@@ -127,6 +127,10 @@ kbd {
 .code-edge-count {
   opacity: 0.8;
 }
+.code-edge-mismatch {
+  margin-top: 6px;
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
 
 /* Persistent diagnostic badge layer over the canvas */
 .code-diag-layer {

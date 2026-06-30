@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.27.0
+
+Code-aware: edge metadata + declared-vs-detected check (Phase 2 P2.10).
+
+- Arrows can carry an intended relationship in `customData.relation` (e.g. `{ kind: "calls" }`). The
+  edge panel and `get_edge_relation` now compare the **declared** kind against what the code actually
+  shows and flag a **mismatch** (declared "inherits" but the code only "calls", etc.).
+- New tool **set_edge_relation** (Language Model + MCP) to declare or clear an arrow's relationship.
+
 ## 3.26.0
 
 Code-aware: edge / relationship intelligence (Phase 2 P2.7–P2.9).

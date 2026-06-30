@@ -145,7 +145,7 @@ including an entry in the [Change Log](#change-log-append-only) at the bottom.
 - [x] **P2.9** **Diagram linter for edges**: when no concrete site is found, report
   "conceptual/transitive" (no silent fail); mark the arrow `unverified`; optional depth-capped,
   opt-in transitive path-finding (A → … → B) peeking the first hop.
-- [ ] **P2.10** **Edge metadata `arrow.customData.relation`** (`{kind?,verified?,lastChecked?,from?,to?}`):
+- [x] **P2.10** **Edge metadata `arrow.customData.relation`** (`{kind?,verified?,lastChecked?,from?,to?}`):
   declare/override intent, support unbound arrows, cache verification, flag declared-vs-detected
   mismatch; optionally auto-label the arrow with the detected kind.
 
